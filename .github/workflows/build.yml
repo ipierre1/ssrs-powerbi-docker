@@ -22,7 +22,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ssrs-powerbi
+  IMAGE_NAME: ssrs
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
     
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
-      image-tags: ${{ steps.meta.outputs.tags }}
+      image-tags: ${{ steps.tags.outputs.tags }}
       
     steps:
     - name: Checkout repository
@@ -66,71 +66,157 @@ jobs:
         }
       shell: powershell
 
-    - name: Set up Docker Buildx
-      # if: steps.changes.outputs.changed == 'true'
-      uses: docker/setup-buildx-action@v3
-
     - name: Log in to DockerHub
       # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ env.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      run: |
+        echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ env.DOCKERHUB_USERNAME }}" --password-stdin
+      shell: powershell
 
-    - name: Extract metadata
+    - name: Generate Docker tags
       # if: steps.changes.outputs.changed == 'true'
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-        tags: |
-          # Tag avec le nom de la branche pour les pushs de branche
-          type=ref,event=branch
-          # Tag avec le nom de la PR pour les pull requests
-          type=ref,event=pr
-          # Tag avec la version pour les tags
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
-          # Tag latest pour les pushs sur main/master
-          type=raw,value=latest,enable={{is_default_branch}}
-          # Tag avec la date et SHA court
-          type=raw,value={{date 'YYYYMMDD'}}-{{sha}}
-        labels: |
-          org.opencontainers.image.title=SSRS 2019 Docker
-          org.opencontainers.image.description=SQL Server Reporting Services 2019 in Docker container
-          org.opencontainers.image.vendor=${{ github.repository_owner }}
-          org.opencontainers.image.licenses=MIT
+      id: tags
+      run: |
+        $tags = @()
+        $baseImage = "${{ env.REGISTRY }}/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}"
+        
+        # Tag based on event type
+        switch ("${{ github.event_name }}") {
+          "push" {
+            if ("${{ github.ref_type }}" -eq "tag") {
+              # Version tags for releases
+              $version = "${{ github.ref_name }}" -replace "^v", ""
+              $tags += "${baseImage}:${version}"
+              $versionParts = $version -split "\."
+              if ($versionParts.Length -ge 2) {
+                $tags += "${baseImage}:$($versionParts[0]).$($versionParts[1])"
+              }
+              if ($versionParts.Length -ge 1) {
+                $tags += "${baseImage}:$($versionParts[0])"
+              }
+            } else {
+              # Branch name tag
+              $branchName = "${{ github.ref_name }}" -replace "[^a-zA-Z0-9]", "-"
+              $tags += "${baseImage}:${branchName}"
+              
+              # Latest tag for main/master branch
+              if ("${{ github.ref_name }}" -eq "main" -or "${{ github.ref_name }}" -eq "master") {
+                $tags += "${baseImage}:latest"
+              }
+            }
+          }
+          "pull_request" {
+            $tags += "${baseImage}:pr-${{ github.event.number }}"
+          }
+        }
+        
+        # Always add date-sha tag
+        $date = Get-Date -Format "yyyyMMdd"
+        $sha = "${{ github.sha }}".Substring(0, 7)
+        $tags += "${baseImage}:${date}-${sha}"
+        
+        # Output tags
+        $tagsString = $tags -join ","
+        echo "tags=$tagsString" >> $env:GITHUB_OUTPUT
+        echo "primary_tag=$($tags[0])" >> $env:GITHUB_OUTPUT
+        
+        Write-Host "Generated tags:"
+        $tags | ForEach-Object { Write-Host "  - $_" }
+      shell: powershell
 
-    - name: Build and push Docker image
+    - name: Build Docker image
       # if: steps.changes.outputs.changed == 'true'
       id: build
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile
-        platforms: windows/amd64
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        build-args: |
-          BUILD_DATE=${{ steps.meta.outputs.labels['org.opencontainers.image.created'] }}
-          VCS_REF=${{ github.sha }}
-          VERSION=${{ steps.meta.outputs.version }}
+      run: |
+        $tags = "${{ steps.tags.outputs.tags }}" -split ","
+        $primaryTag = "${{ steps.tags.outputs.primary_tag }}"
+        
+        # Build arguments
+        $buildArgs = @(
+          "--build-arg", "BUILD_DATE=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')",
+          "--build-arg", "VCS_REF=${{ github.sha }}",
+          "--build-arg", "VERSION=${{ github.ref_name }}"
+        )
+        
+        # Add labels
+        $labels = @(
+          "--label", "org.opencontainers.image.title=SSRS 2019 Docker",
+          "--label", "org.opencontainers.image.description=SQL Server Reporting Services 2019 in Docker container",
+          "--label", "org.opencontainers.image.vendor=${{ github.repository_owner }}",
+          "--label", "org.opencontainers.image.licenses=MIT",
+          "--label", "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}",
+          "--label", "org.opencontainers.image.revision=${{ github.sha }}",
+          "--label", "org.opencontainers.image.created=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')"
+        )
+        
+        Write-Host "Building Docker image with primary tag: $primaryTag"
+        
+        # Build the image
+        $buildCmd = @("docker", "build") + $buildArgs + $labels + @("-t", $primaryTag, ".")
+        & $buildCmd[0] $buildCmd[1..($buildCmd.Length-1)]
+        
+        if ($LASTEXITCODE -ne 0) {
+          throw "Docker build failed with exit code $LASTEXITCODE"
+        }
+        
+        # Tag with additional tags
+        foreach ($tag in $tags[1..($tags.Length-1)]) {
+          Write-Host "Tagging with: $tag"
+          docker tag $primaryTag $tag
+          if ($LASTEXITCODE -ne 0) {
+            throw "Docker tag failed for $tag"
+          }
+        }
+        
+        # Get image digest for output
+        $imageInfo = docker inspect $primaryTag | ConvertFrom-Json
+        $digest = $imageInfo[0].Id
+        echo "digest=$digest" >> $env:GITHUB_OUTPUT
+        
+        Write-Host "Build completed successfully"
+        Write-Host "Image ID: $digest"
+      shell: powershell
+
+    - name: Push Docker images
+      # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      run: |
+        $tags = "${{ steps.tags.outputs.tags }}" -split ","
+        
+        Write-Host "Pushing $($tags.Length) tags to DockerHub..."
+        
+        foreach ($tag in $tags) {
+          Write-Host "Pushing: $tag"
+          docker push $tag
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to push $tag"
+          }
+          Write-Host "✓ Successfully pushed: $tag"
+        }
+        
+        Write-Host "All images pushed successfully!"
+      shell: powershell
 
     - name: Generate SBOM
-      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
-      uses: anchore/sbom-action@v0
-      with:
-        image: ${{ env.REGISTRY }}/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
-        format: spdx-json
-        output-file: sbom.spdx.json
+      # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      run: |
+        # Install Syft for Windows SBOM generation
+        $syftVersion = "0.98.0"
+        $downloadUrl = "https://github.com/anchore/syft/releases/download/v${syftVersion}/syft_${syftVersion}_windows_amd64.zip"
+        
+        Write-Host "Downloading Syft v$syftVersion..."
+        Invoke-WebRequest -Uri $downloadUrl -OutFile "syft.zip"
+        Expand-Archive -Path "syft.zip" -DestinationPath "C:\syft" -Force
+        
+        # Generate SBOM
+        $primaryTag = "${{ steps.tags.outputs.primary_tag }}"
+        Write-Host "Generating SBOM for: $primaryTag"
+        
+        C:\syft\syft.exe $primaryTag -o spdx-json=sbom.spdx.json
+        
+        Write-Host "SBOM generated successfully"
+      shell: powershell
 
     - name: Upload SBOM as artifact
-      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
       uses: actions/upload-artifact@v4
       with:
         name: sbom
@@ -157,7 +243,7 @@ jobs:
       id: test-tag
       run: |
         $tags = "${{ needs.build.outputs.image-tags }}"
-        $firstTag = ($tags -split "`n")[0]
+        $firstTag = ($tags -split ",")[0]
         echo "tag=$firstTag" >> $env:GITHUB_OUTPUT
         Write-Host "Using tag for testing: $firstTag"
       shell: powershell
@@ -307,24 +393,62 @@ jobs:
 
   security-scan:
     needs: build
-    runs-on: ubuntu-latest  # Trivy fonctionne mieux sur Linux
+    runs-on: windows-latest  # Changed to windows for Windows containers
     if: needs.build.outputs.image-tags != '' && github.event_name != 'pull_request'
     
     steps:
     - name: Extract scan image tag
       id: scan-tag
       run: |
-        tags="${{ needs.build.outputs.image-tags }}"
-        first_tag=$(echo "$tags" | head -n1)
-        echo "tag=$first_tag" >> $GITHUB_OUTPUT
-        echo "Using tag for scanning: $first_tag"
+        $tags = "${{ needs.build.outputs.image-tags }}"
+        $firstTag = ($tags -split ",")[0]
+        echo "tag=$firstTag" >> $env:GITHUB_OUTPUT
+        Write-Host "Using tag for scanning: $firstTag"
+      shell: powershell
+
+    - name: Install Trivy
+      run: |
+        # Download and install Trivy for Windows
+        $trivyVersion = "0.47.0"
+        $downloadUrl = "https://github.com/aquasecurity/trivy/releases/download/v${trivyVersion}/trivy_${trivyVersion}_Windows-64bit.zip"
+        
+        Write-Host "Downloading Trivy v$trivyVersion..."
+        Invoke-WebRequest -Uri $downloadUrl -OutFile "trivy.zip"
+        
+        # Extract Trivy
+        Expand-Archive -Path "trivy.zip" -DestinationPath "C:\trivy" -Force
+        
+        # Add to PATH
+        $env:PATH += ";C:\trivy"
+        echo "C:\trivy" >> $env:GITHUB_PATH
+        
+        # Verify installation
+        C:\trivy\trivy.exe --version
+      shell: powershell
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+      run: |
+        $imageTag = "${{ steps.scan-tag.outputs.tag }}"
+        Write-Host "Scanning image: $imageTag"
+        
+        # Run Trivy scan
+        C:\trivy\trivy.exe image --format sarif --output trivy-results.sarif $imageTag
+        
+        # Also generate a readable report
+        C:\trivy\trivy.exe image --format table --output trivy-report.txt $imageTag
+        
+        Write-Host "Vulnerability scan completed"
+      shell: powershell
+
+    - name: Upload Trivy scan results
+      uses: actions/upload-artifact@v4
+      if: always()
       with:
-        image-ref: ${{ steps.scan-tag.outputs.tag }}
-        format: 'sarif'
-        output: 'trivy-results.sarif'
+        name: trivy-scan-results
+        path: |
+          trivy-results.sarif
+          trivy-report.txt
+        retention-days: 30
 
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
