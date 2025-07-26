@@ -1,4 +1,4 @@
-# SSRS-Docker
+# SSRS PowerBI Docker image
 
 [![Build and Publish](https://github.com/ipierre1/ssrs-powerbi-docker/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ipierre1/ssrs-powerbi-docker/actions/workflows/docker-build.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/ipierre1/ssrs-powerbi)](https://hub.docker.com/r/ipierre1/ssrs-powerbi)
@@ -9,7 +9,7 @@ SQL Server Reporting Services (SSRS) Power BI 2022 containerized for development
 
 > ⚠️ **Important**: This container is designed for development and testing purposes only. It is **NOT recommended for production use**.
 
-## 🏗️ Project History and Credits
+## Project History and Credits
 
 This project is a modernized fork that builds upon the excellent work of previous contributors:
 

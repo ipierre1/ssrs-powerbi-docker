@@ -1,0 +1,12 @@
+.git
+.github
+*.md
+.gitignore
+.dockerignore
+*.log
+tests/
+docs/
+.vscode/
+.idea/
+*.tmp
+*.temp

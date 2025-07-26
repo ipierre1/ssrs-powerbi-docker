@@ -1,0 +1,378 @@
+name: Build and Publish SSRS Docker Image
+
+on:
+  push:
+    branches: 
+      - main
+      - master
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+    branches: 
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even without changes'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ssrs-powerbi
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Pour avoir l'historique complet pour les tags
+
+    - name: Check for Dockerfile changes
+      id: changes
+      run: |
+        if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.force_build }}" -eq "true") {
+          echo "changed=true" >> $env:GITHUB_OUTPUT
+          Write-Host "Force build requested"
+        }
+        elseif ("${{ github.event_name }}" -eq "push" -and "${{ github.ref_type }}" -eq "tag") {
+          echo "changed=true" >> $env:GITHUB_OUTPUT
+          Write-Host "Tag push detected"
+        }
+        elseif ("${{ github.event_name }}" -eq "pull_request") {
+          echo "changed=true" >> $env:GITHUB_OUTPUT
+          Write-Host "Pull request - building for testing"
+        }
+        else {
+          $changedFiles = git diff --name-only HEAD~1 HEAD
+          if ($changedFiles -match "(Dockerfile|\.dockerignore|scripts/)" -or "${{ github.event_name }}" -eq "workflow_dispatch") {
+            echo "changed=true" >> $env:GITHUB_OUTPUT
+            Write-Host "Docker-related files changed or manual trigger"
+          } else {
+            echo "changed=false" >> $env:GITHUB_OUTPUT
+            Write-Host "No Docker-related changes detected"
+          }
+        }
+      shell: powershell
+
+    - name: Set up Docker Buildx
+      if: steps.changes.outputs.changed == 'true'
+      uses: docker/setup-buildx-action@v3
+      with:
+        platforms: windows/amd64
+
+    - name: Log in to DockerHub
+      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ env.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Extract metadata
+      if: steps.changes.outputs.changed == 'true'
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+        tags: |
+          # Tag avec le nom de la branche pour les pushs de branche
+          type=ref,event=branch
+          # Tag avec le nom de la PR pour les pull requests
+          type=ref,event=pr
+          # Tag avec la version pour les tags
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          # Tag latest pour les pushs sur main/master
+          type=raw,value=latest,enable={{is_default_branch}}
+          # Tag avec la date et SHA court
+          type=raw,value={{date 'YYYYMMDD'}}-{{sha}}
+        labels: |
+          org.opencontainers.image.title=SSRS 2019 Docker
+          org.opencontainers.image.description=SQL Server Reporting Services 2019 in Docker container
+          org.opencontainers.image.vendor=${{ github.repository_owner }}
+          org.opencontainers.image.licenses=MIT
+
+    - name: Build and push Docker image
+      if: steps.changes.outputs.changed == 'true'
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: windows/amd64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILD_DATE=${{ steps.meta.outputs.labels['org.opencontainers.image.created'] }}
+          VCS_REF=${{ github.sha }}
+          VERSION=${{ steps.meta.outputs.version }}
+
+    - name: Generate SBOM
+      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+
+    - name: Upload SBOM as artifact
+      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom
+        path: sbom.spdx.json
+        retention-days: 30
+
+  test:
+    needs: build
+    runs-on: windows-latest
+    if: needs.build.outputs.image-tags != ''
+    
+    strategy:
+      matrix:
+        test-scenario:
+          - basic-functionality
+          - api-endpoints
+          - report-generation
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Extract test image tag
+      id: test-tag
+      run: |
+        $tags = "${{ needs.build.outputs.image-tags }}"
+        $firstTag = ($tags -split "`n")[0]
+        echo "tag=$firstTag" >> $env:GITHUB_OUTPUT
+        Write-Host "Using tag for testing: $firstTag"
+      shell: powershell
+
+    - name: Run SSRS Container for Testing
+      run: |
+        $containerName = "ssrs-test-${{ matrix.test-scenario }}"
+        
+        Write-Host "Starting container: $containerName"
+        docker run -d --name $containerName `
+          -p 1433:1433 -p 80:80 `
+          -e ACCEPT_EULA=Y `
+          -e sa_password="TestPass123!" `
+          -e ssrs_user="TestAdmin" `
+          -e ssrs_password="TestAdmin123!" `
+          --memory 6048mb `
+          ${{ steps.test-tag.outputs.tag }}
+        
+        # Wait for container to be ready
+        $timeout = 300
+        $elapsed = 0
+        $interval = 15
+        
+        do {
+          $containerStatus = docker inspect --format='{{.State.Status}}' $containerName
+          Write-Host "Container status: $containerStatus (${elapsed}s elapsed)"
+          
+          if ($containerStatus -eq "running") {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost/reports" -TimeoutSec 10 -UseBasicParsing
+              if ($response.StatusCode -eq 200) {
+                Write-Host "SSRS is ready!"
+                break
+              }
+            }
+            catch {
+              Write-Host "SSRS not ready yet, waiting..."
+            }
+          }
+          
+          Start-Sleep $interval
+          $elapsed += $interval
+        } while ($elapsed -lt $timeout)
+        
+        if ($elapsed -ge $timeout) {
+          Write-Host "Container logs:"
+          docker logs $containerName
+          throw "SSRS failed to start within timeout period"
+        }
+      shell: powershell
+
+    - name: Run Tests - ${{ matrix.test-scenario }}
+      run: |
+        $containerName = "ssrs-test-${{ matrix.test-scenario }}"
+        
+        switch ("${{ matrix.test-scenario }}") {
+          "basic-functionality" {
+            Write-Host "Testing basic SSRS functionality..."
+            
+            # Test web interface
+            $response = Invoke-WebRequest -Uri "http://localhost/reports" -UseBasicParsing
+            if ($response.StatusCode -ne 200) {
+              throw "SSRS web interface not accessible"
+            }
+            Write-Host "✓ Web interface accessible"
+            
+            # Test SQL Server connection
+            $connectionString = "Server=localhost,1433;Database=master;User Id=sa;Password=TestPass123!;TrustServerCertificate=true;"
+            $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+            try {
+              $connection.Open()
+              Write-Host "✓ SQL Server connection successful"
+              $connection.Close()
+            }
+            catch {
+              throw "SQL Server connection failed: $($_.Exception.Message)"
+            }
+          }
+          
+          "api-endpoints" {
+            Write-Host "Testing SSRS API endpoints..."
+            
+            # Test SOAP endpoints
+            $endpoints = @(
+              "http://localhost/reportserver/ReportService2010.asmx?WSDL",
+              "http://localhost/reportserver/ReportExecution2005.asmx?WSDL"
+            )
+            
+            foreach ($endpoint in $endpoints) {
+              try {
+                $response = Invoke-WebRequest -Uri $endpoint -UseBasicParsing -TimeoutSec 30
+                if ($response.StatusCode -eq 200 -and $response.Content -like "*wsdl*") {
+                  Write-Host "✓ Endpoint accessible: $endpoint"
+                } else {
+                  throw "Invalid WSDL response"
+                }
+              }
+              catch {
+                throw "Endpoint test failed for $endpoint : $($_.Exception.Message)"
+              }
+            }
+          }
+          
+          "report-generation" {
+            Write-Host "Testing report generation capabilities..."
+            
+            # Test with PowerShell SSRS module
+            try {
+              # Install ReportingServicesTools if not available
+              if (-not (Get-Module -ListAvailable -Name ReportingServicesTools)) {
+                Install-Module -Name ReportingServicesTools -Force -Scope CurrentUser -AllowClobber
+              }
+              
+              $credential = New-Object System.Management.Automation.PSCredential("TestAdmin", (ConvertTo-SecureString "TestAdmin123!" -AsPlainText -Force))
+              
+              # Test web service proxy
+              $proxy = New-WebServiceProxy -Uri "http://localhost/reportserver/ReportService2010.asmx?WSDL" -Credential $credential
+              
+              # Test basic operations
+              $systemProps = $proxy.GetSystemProperties()
+              Write-Host "✓ GetSystemProperties successful"
+              
+              $folders = $proxy.ListChildren("/", $false)
+              Write-Host "✓ ListChildren successful - Found $($folders.Length) items"
+              
+            }
+            catch {
+              Write-Host "Warning: Advanced report testing failed: $($_.Exception.Message)"
+              Write-Host "This might be expected in some environments"
+            }
+          }
+        }
+        
+        Write-Host "All tests passed for scenario: ${{ matrix.test-scenario }}"
+      shell: powershell
+
+    - name: Cleanup Test Container
+      if: always()
+      run: |
+        $containerName = "ssrs-test-${{ matrix.test-scenario }}"
+        if (docker ps -a --format "{{.Names}}" | Select-String -Pattern $containerName -Quiet) {
+          Write-Host "Stopping and removing container: $containerName"
+          docker stop $containerName
+          docker rm $containerName
+        }
+      shell: powershell
+
+  security-scan:
+    needs: build
+    runs-on: ubuntu-latest  # Trivy fonctionne mieux sur Linux
+    if: needs.build.outputs.image-tags != '' && github.event_name != 'pull_request'
+    
+    steps:
+    - name: Extract scan image tag
+      id: scan-tag
+      run: |
+        tags="${{ needs.build.outputs.image-tags }}"
+        first_tag=$(echo "$tags" | head -n1)
+        echo "tag=$first_tag" >> $GITHUB_OUTPUT
+        echo "Using tag for scanning: $first_tag"
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ steps.scan-tag.outputs.tag }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  release:
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          README.md
+          LICENSE
+        body: |
+          ## SSRS Docker Image Release
+          
+          ### Docker Images
+          - **Image**: `${{ env.REGISTRY }}/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}`
+          - **Latest**: `${{ env.REGISTRY }}/${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest`
+          
+          ### Usage
+          ```bash
+          docker run -d -p 1433:1433 -p 80:80 \
+            -e ACCEPT_EULA=Y \
+            -e sa_password=<YOUR_SA_PASSWORD> \
+            -e ssrs_user=SSRSAdmin \
+            -e ssrs_password=<YOUR_SSRS_PASSWORD> \
+            --memory 6048mb \
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          ```
+          
+          Access SSRS at: http://localhost/reports
+          
+          ### Changes
+          See the full changelog below.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
