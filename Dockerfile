@@ -34,10 +34,10 @@ ENV SA_PASSWORD="YourStrong@Passw0rd" \
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Installe les outils nécessaires
-RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')); \
-    choco install -y 7zip
+# RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
+#     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+#     iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')); \
+#     choco install -y 7zip
 
 # Crée les répertoires de travail
 RUN New-Item -ItemType Directory -Force -Path C:\temp, C:\setup
@@ -64,12 +64,12 @@ RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
                   '/ENU', \
                   '/IAcceptSQLServerLicenseTerms', \
                   '/Language=en-US' \
-                  '/FEATURES=SQLEngine', \
-                  '/UPDATEENABLED=0', \
+                #   '/FEATURES=SQLEngine', \
+                #   '/UPDATEENABLED=0', \
                 #   '/SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE'', \
                 #   '/SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS'', \
-                  '/TCPENABLED=1', \
-                  '/NPENABLED=0' \
+                #   '/TCPENABLED=1', \
+                #   '/NPENABLED=0' \
     -Wait -NoNewWindow; \
     Write-Host 'Installation SQL Server terminée'
 
