@@ -51,7 +51,7 @@ RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
 # Étape 1: Télécharge les médias SQL Server avec SSEI (ISO)
 RUN Write-Host 'Téléchargement des médias SQL Server (ISO)...'; \
     Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
-    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=ISO', '/QUIET', '/IAcceptSqlServerLicenseTerms' \
+    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=ISO', '/QUIET' \
     -Wait -NoNewWindow; \
     Write-Host 'Vérification du téléchargement...'; \
     if (Test-Path 'C:\setup\sql') { \
