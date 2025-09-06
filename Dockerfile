@@ -39,6 +39,17 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 #     iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')); \
 #     choco install -y 7zip
 
+# Copy configuration scripts
+COPY scripts/ C:/scripts/
+    
+RUN powershell -Command \
+    # Set execution policy \
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force; \
+    \
+    # Configure PBIRS service \
+    Write-Host 'Configuring admin accounts...'; \
+    C:/scripts/newadmin.ps1 -username $env:$pbirs_user -password $env:$pbirs_password -Verbose;
+
 # Crée les répertoires de travail
 RUN New-Item -ItemType Directory -Force -Path C:\temp, C:\setup
 
@@ -102,15 +113,16 @@ RUN Write-Host 'Extraction des fichiers .exe/.box et installation de SQL Server 
                          '/FEATURES=SQLENGINE', \
                          '/INSTANCENAME=MSSQLSERVER', \
                          '/SAPWD="YourStrong@Passw0rd"', \
-                         '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
-                         '/SQLSYSADMINACCOUNTS="BUILTIN\Administrators"', \
-                         '/AGTSVCACCOUNT="NT AUTHORITY\NETWORK SERVICE"', \
+                         '/AGTSVCACCOUNT=`"NT AUTHORITY\System`"', \
+                         '/SQLSVCACCOUNT=`"NT AUTHORITY\System`"', \
+                         '/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`"', \
                          '/SQLSVCSTARTUPTYPE=Automatic', \
                          '/AGTSVCSTARTUPTYPE=Automatic', \
                          '/BROWSERSVCSTARTUPTYPE=Automatic', \
                          '/TCPENABLED=1', \
                          '/NPENABLED=0', \
                          '/UPDATEENABLED=0', \
+                         '/SECURITYMODE=SQL', \
                          '/QUIET', \
                          '/INDICATEPROGRESS' \
             -Wait -NoNewWindow; \
@@ -168,9 +180,7 @@ RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
 RUN Remove-Item -Path C:\temp -Recurse -Force; \
     Remove-Item -Path C:\setup -Recurse -Force
 
-# Copy configuration scripts
-COPY scripts/ C:/scripts/
-
+    
 # Make scripts executable and configure PBIRS
 RUN powershell -Command \
     # Set execution policy \
