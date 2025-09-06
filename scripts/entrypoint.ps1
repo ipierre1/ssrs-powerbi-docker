@@ -44,7 +44,7 @@ try {
     # Configure PBIRS if not already configured
     C:/scripts/configure-pbirs.ps1 -Verbose
 
-    C:/scripts/newadmin.ps1 -username $pbirs_user -password $pbirs_password -Verbose
+    C:/scripts/configure-admin.ps1 -username $pbirs_user -password $pbirs_password -Verbose
 
     Write-Host "PBIRS is ready!"
     Write-Host "Access PBIRS at: http://localhost/reports"
