@@ -48,36 +48,64 @@ RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
     -OutFile 'C:\temp\SQL2025-SSEI-Eval.exe' -UseBasicParsing; \
     Write-Host 'Téléchargement terminé'
 
-RUN Write-Host 'Extraction des médias SQL Server...'; \
+# Étape 1: Télécharge les médias SQL Server avec SSEI (ISO)
+RUN Write-Host 'Téléchargement des médias SQL Server (ISO)...'; \
     Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
-    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=Core', '/QUIET' \
+    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=ISO', '/QUIET', '/IAcceptSqlServerLicenseTerms' \
     -Wait -NoNewWindow; \
-    Write-Host 'Extraction terminée'
-
-# Installe SQL Server 2025
-RUN Write-Host 'Installation de SQL Server 2025...'; \
-    $setupPath = Get-ChildItem -Path 'C:\setup\sql' -Name 'setup.exe' -Recurse | Select-Object -First 1; \
-    if ($setupPath) { \
-        $fullSetupPath = Join-Path 'C:\setup\sql' $setupPath; \
-        Start-Process -FilePath $fullSetupPath \
-        -ArgumentList '/IACCEPTSQLSERVERLICENSETERMS', \
-                     '/ACTION=install', \
-                     '/FEATURES=SQLENGINE', \
-                     '/INSTANCENAME=MSSQLSERVER', \
-                     '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
-                     '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"', \
-                     '/AGTSVCACCOUNT="NT AUTHORITY\Network Service"', \
-                     '/SQLSVCSTARTUPTYPE=Automatic', \
-                     '/BROWSERSVCSTARTUPTYPE=Automatic', \
-                     '/TCPENABLED=1', \
-                     '/NPENABLED=0', \
-                     '/QUIET', \
-                     '/INDICATEPROGRESS' \
-        -Wait -NoNewWindow; \
+    Write-Host 'Vérification du téléchargement...'; \
+    if (Test-Path 'C:\setup\sql') { \
+        Write-Host 'Médias SQL Server téléchargés avec succès'; \
+        Get-ChildItem -Path 'C:\setup\sql' -Recurse | Select-Object Name, Length, FullName | Format-Table; \
     } else { \
-        Write-Error 'Setup.exe non trouvé'; \
-    } \
-    Write-Host 'Installation SQL Server terminée'
+        Write-Error 'Échec du téléchargement des médias SQL Server'; \
+        exit 1; \
+    }
+
+# Étape 2: Monte l'ISO et installe SQL Server
+RUN Write-Host 'Montage de l ISO et installation de SQL Server 2025...'; \
+    $isoFile = Get-ChildItem -Path 'C:\setup\sql' -Filter '*.iso' | Select-Object -First 1; \
+    if ($isoFile) { \
+        Write-Host "ISO trouvée: $($isoFile.FullName)"; \
+        # Monte l'ISO \
+        $mountResult = Mount-DiskImage -ImagePath $isoFile.FullName -PassThru; \
+        $volume = Get-Volume -DiskImage $mountResult; \
+        $driveLetter = $volume.DriveLetter + ':'; \
+        Write-Host "ISO montée sur le lecteur $driveLetter"; \
+        # Vérifie setup.exe \
+        $setupPath = Join-Path $driveLetter 'setup.exe'; \
+        if (Test-Path $setupPath) { \
+            Write-Host "Setup trouvé: $setupPath"; \
+            # Lance l'installation \
+            Start-Process -FilePath $setupPath \
+            -ArgumentList '/IACCEPTSQLSERVERLICENSETERMS', \
+                         '/ACTION=install', \
+                         '/FEATURES=SQLENGINE', \
+                         '/INSTANCENAME=MSSQLSERVER', \
+                         '/SQLSVCACCOUNT="NT AUTHORITY\NETWORK SERVICE"', \
+                         '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"', \
+                         '/AGTSVCACCOUNT="NT AUTHORITY\NETWORK SERVICE"', \
+                         '/SQLSVCSTARTUPTYPE=Automatic', \
+                         '/AGTSVCSTARTUPTYPE=Automatic', \
+                         '/BROWSERSVCSTARTUPTYPE=Automatic', \
+                         '/TCPENABLED=1', \
+                         '/NPENABLED=0', \
+                         '/UPDATEENABLED=0', \
+                         '/QUIET', \
+                         '/INDICATEPROGRESS' \
+            -Wait -NoNewWindow; \
+            Write-Host 'Installation SQL Server terminée'; \
+            # Démonte l'ISO \
+            Dismount-DiskImage -ImagePath $isoFile.FullName; \
+        } else { \
+            Write-Error "Setup.exe non trouvé sur le lecteur $driveLetter"; \
+            exit 1; \
+        }; \
+    } else { \
+        Write-Error 'Fichier ISO non trouvé dans les médias téléchargés'; \
+        Get-ChildItem -Path 'C:\setup\sql' -Recurse; \
+        exit 1; \
+    }
 
 # Configure SQL Server
 RUN Write-Host 'Configuration de SQL Server...'; \
