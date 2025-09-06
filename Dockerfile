@@ -48,6 +48,19 @@ RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
     -OutFile 'C:\temp\SQL2025-SSEI-Eval.exe' -UseBasicParsing; \
     Write-Host 'Téléchargement terminé'
 
+RUN Write-Host 'Téléchargement des médias SQL Server (CAB)...'; \
+    Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
+    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=CAB', '/QUIET' \
+    -Wait -NoNewWindow; \
+    Write-Host 'Vérification du téléchargement...'; \
+    if (Test-Path 'C:\setup\sql') { \
+        Write-Host 'Médias SQL Server téléchargés avec succès'; \
+        Get-ChildItem -Path 'C:\setup\sql' -Recurse | Select-Object Name, Length, FullName | Format-Table; \
+    } else { \
+        Write-Error 'Échec du téléchargement des médias SQL Server'; \
+        exit 1; \
+    }
+
 RUN Write-Host 'Extraction des fichiers .exe/.box et installation de SQL Server 2025...'; \
     Write-Host 'Contenu du dossier téléchargé:'; \
     Get-ChildItem -Path 'C:\setup\sql' -Recurse | Select-Object Name, Length, FullName | Format-Table; \
