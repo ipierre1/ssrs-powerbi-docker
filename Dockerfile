@@ -44,7 +44,7 @@ RUN New-Item -ItemType Directory -Force -Path C:\temp, C:\setup
 
 # Télécharge SQL Server 2025 Evaluation
 RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
-    Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2314611&clcid=0x409&culture=en-us&country=us' 
+    Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2314611&clcid=0x409&culture=en-us&country=us' \
     -OutFile 'C:\temp\SQL2025-SSEI-Eval.exe' -UseBasicParsing; \
     Write-Host 'Téléchargement terminé'
 
