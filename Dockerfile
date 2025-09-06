@@ -58,7 +58,7 @@ RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
                   '/ENU', \
                   '/IAcceptSQLServerLicenseTerms', \
                   '/Language=en-US' \
-                  '/FEATURES=SQLEngine', \
+                #   '/FEATURES=SQLEngine', \
                   '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
                   '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"', \
     -Wait -NoNewWindow; \
