@@ -48,7 +48,7 @@ RUN powershell -Command \
     \
     # Configure PBIRS service \
     Write-Host 'Configuring admin accounts...'; \
-    C:/scripts/newadmin.ps1 -username $env:$pbirs_user -password $env:$pbirs_password -Verbose;
+    C:/scripts/newadmin.ps1 -username $env:pbirs_user -password $env:pbirs_password -Verbose;
 
 # Crée les répertoires de travail
 RUN New-Item -ItemType Directory -Force -Path C:\temp, C:\setup
