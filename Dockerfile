@@ -1,7 +1,7 @@
 # Escape directive pour Windows
 # escape=\
 
-FROM mcr.microsoft.com/mssql/server:2022-latest
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
 # Metadata labels
 LABEL maintainer="ipierre1" \
@@ -24,23 +24,97 @@ LABEL org.opencontainers.image.created=$BUILD_DATE \
 ENV ssrs_user=SSRSAdmin
 ENV ssrs_password=DefaultPass123!
 
-# Switch to root pour l'installation
-USER root
+# Définit les variables d'environnement
+ENV SA_PASSWORD="YourStrong@Passw0rd" \
+    ACCEPT_EULA="Y" \
+    MSSQL_PID="Evaluation"
 
-# Install SSRS
-RUN powershell -Command \
-    # Download SSRS installer \
-    $ProgressPreference = 'SilentlyContinue'; \
-    Write-Host 'Downloading SSRS installer...'; \
-    Invoke-WebRequest -Uri 'https://download.microsoft.com/download/8/3/2/832616ff-af64-42b5-a0b1-5eb07f71dec9/SQLServerReportingServices.exe' -OutFile 'C:\SQLServerReportingServices.exe'; \
-    \
-    # Install SSRS silently \
-    Write-Host 'Installing SSRS...'; \
-    Start-Process -FilePath 'C:\SQLServerReportingServices.exe' -ArgumentList '/quiet', '/norestart', '/IAcceptLicenseTerms', '/Edition=Dev' -Wait -PassThru -Verbose; \
-    \
-    # Clean up installer \
-    Remove-Item -Path 'C:\SQLServerReportingServices.exe' -Force; \
-    Write-Host 'SSRS installation completed.';
+# Configure PowerShell comme shell par défaut
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Installe les outils nécessaires
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')); \
+    choco install -y 7zip
+
+# Crée les répertoires de travail
+RUN New-Item -ItemType Directory -Force -Path C:\temp, C:\setup
+
+# Télécharge SQL Server 2025 Evaluation
+RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
+    Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2314611&clcid=0x409&culture=en-us&country=us' \
+    -OutFile 'C:\temp\SQL2025-SSEI-Eval.exe' -UseBasicParsing; \
+    Write-Host 'Téléchargement terminé'
+
+# Télécharge Power BI Report Server 2025
+RUN Write-Host 'Téléchargement de Power BI Report Server 2025...'; \
+    Invoke-WebRequest -Uri 'https://aka.ms/pbireportserverexe' \
+    -OutFile 'C:\temp\PowerBIReportServer.exe' -UseBasicParsing; \
+    Write-Host 'Téléchargement terminé'
+
+# Télécharge les média SQL Server complets
+RUN Write-Host 'Extraction des médias SQL Server...'; \
+    Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
+    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=Core', '/QUIET' \
+    -Wait -NoNewWindow; \
+    Write-Host 'Extraction terminée'
+
+# Copie le script d'installation SQL Server
+COPY install-sql.ps1 C:\setup\
+
+# Installe SQL Server 2025
+RUN Write-Host 'Installation de SQL Server 2025...'; \
+    $setupPath = Get-ChildItem -Path 'C:\setup\sql' -Name 'setup.exe' -Recurse | Select-Object -First 1; \
+    if ($setupPath) { \
+        $fullSetupPath = Join-Path 'C:\setup\sql' $setupPath; \
+        Start-Process -FilePath $fullSetupPath \
+        -ArgumentList '/IACCEPTSQLSERVERLICENSETERMS', \
+                     '/ACTION=install', \
+                     '/FEATURES=SQLENGINE,REPLICATION,FULLTEXT,IS,CONN', \
+                     '/INSTANCENAME=MSSQLSERVER', \
+                     '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
+                     '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"', \
+                     '/AGTSVCACCOUNT="NT AUTHORITY\Network Service"', \
+                     '/SQLSVCSTARTUPTYPE=Automatic', \
+                     '/BROWSERSVCSTARTUPTYPE=Automatic', \
+                     '/TCPENABLED=1', \
+                     '/NPENABLED=0', \
+                     '/SECURITYMODE=SQL', \
+                     "/SAPWD=$env:SA_PASSWORD", \
+                     '/QUIET', \
+                     '/INDICATEPROGRESS' \
+        -Wait -NoNewWindow; \
+    } else { \
+        Write-Error 'Setup.exe non trouvé'; \
+    } \
+    Write-Host 'Installation SQL Server terminée'
+
+# Configure SQL Server
+RUN Write-Host 'Configuration de SQL Server...'; \
+    # Démarre le service SQL Server si ce n'est pas fait
+    Start-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
+    # Configure le port TCP
+    Import-Module SqlServer -ErrorAction SilentlyContinue; \
+    Write-Host 'SQL Server configuré'
+
+# Installe Power BI Report Server
+RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
+    Start-Process -FilePath 'C:\temp\PowerBIReportServer.exe' \
+    -ArgumentList '/QUIET', \
+                 '/IACCEPTLICENSETERMS', \
+                 '/EDITION=Eval', \
+                 '/INSTANCENAME=PBIRS', \
+                 '/INSTALLPATH="C:\Program Files\Microsoft Power BI Report Server"', \
+                 '/DATABASESERVERNAME=localhost', \
+                 '/DATABASENAME=ReportServer', \
+                 '/RSINSTALLMODE=DefaultNativeMode' \
+    -Wait -NoNewWindow; \
+    Write-Host 'Installation Power BI Report Server terminée'
+
+# Nettoie les fichiers temporaires
+RUN Remove-Item -Path C:\temp -Recurse -Force; \
+    Remove-Item -Path C:\setup\sql -Recurse -Force
 
 # Copy configuration scripts
 COPY scripts/ C:/scripts/
