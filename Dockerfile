@@ -54,40 +54,9 @@ RUN Write-Host 'Téléchargement de Power BI Report Server 2025...'; \
     Write-Host 'Téléchargement terminé'
 
 # Télécharge les média SQL Server complets
-RUN Write-Host 'Extraction des médias SQL Server...'; \
-    Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
-    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=Core', '/QUIET' \
+RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
+    Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' -ArgumentList '/ACTION=Install', '/MEDIAPATH=C:\setup\sql', '/QUIET', '/ENU', '/IAcceptSQLServerLicenseTerms', '/Language=en-US' \
     -Wait -NoNewWindow; \
-    Write-Host 'Extraction terminée'
-
-# Copie le script d'installation SQL Server
-COPY install-sql.ps1 C:\setup\
-
-# Installe SQL Server 2025
-RUN Write-Host 'Installation de SQL Server 2025...'; \
-    $setupPath = Get-ChildItem -Path 'C:\setup\sql' -Name 'setup.exe' -Recurse | Select-Object -First 1; \
-    if ($setupPath) { \
-        $fullSetupPath = Join-Path 'C:\setup\sql' $setupPath; \
-        Start-Process -FilePath $fullSetupPath \
-        -ArgumentList '/IACCEPTSQLSERVERLICENSETERMS', \
-                     '/ACTION=install', \
-                     '/FEATURES=SQLENGINE,REPLICATION,FULLTEXT,IS,CONN', \
-                     '/INSTANCENAME=MSSQLSERVER', \
-                     '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
-                     '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"', \
-                     '/AGTSVCACCOUNT="NT AUTHORITY\Network Service"', \
-                     '/SQLSVCSTARTUPTYPE=Automatic', \
-                     '/BROWSERSVCSTARTUPTYPE=Automatic', \
-                     '/TCPENABLED=1', \
-                     '/NPENABLED=0', \
-                     '/SECURITYMODE=SQL', \
-                     "/SAPWD=$env:SA_PASSWORD", \
-                     '/QUIET', \
-                     '/INDICATEPROGRESS' \
-        -Wait -NoNewWindow; \
-    } else { \
-        Write-Error 'Setup.exe non trouvé'; \
-    } \
     Write-Host 'Installation SQL Server terminée'
 
 # Configure SQL Server
