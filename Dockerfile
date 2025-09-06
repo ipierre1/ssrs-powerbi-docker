@@ -48,18 +48,12 @@ RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
     -OutFile 'C:\temp\SQL2025-SSEI-Eval.exe' -UseBasicParsing; \
     Write-Host 'Téléchargement terminé'
 
-# Télécharge Power BI Report Server 2025
-RUN Write-Host 'Téléchargement de Power BI Report Server 2025...'; \
-    Invoke-WebRequest -Uri 'https://aka.ms/pbireportserverexe' \
-    -OutFile 'C:\temp\PowerBIReportServer.exe' -UseBasicParsing; \
-    Write-Host 'Téléchargement terminé'
-
 # Télécharge les média SQL Server complets
 RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
     Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
     -ArgumentList '/ACTION=Install', \
                   '/INSTANCENAME=MSSQLSERVER', \
-                  '/MEDIAPATH=C:\setup\sql', \
+                  '/MEDIAPATH="C:\setup\sql"', \
                   '/QUIET', \
                   '/ENU', \
                   '/IAcceptSQLServerLicenseTerms', \
@@ -73,7 +67,6 @@ RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
     -Wait -NoNewWindow; \
     Write-Host 'Installation SQL Server terminée'
 
-
 # Configure SQL Server
 RUN Write-Host 'Configuration de SQL Server...'; \
     # Démarre le service SQL Server si ce n'est pas fait
@@ -81,6 +74,12 @@ RUN Write-Host 'Configuration de SQL Server...'; \
     # Configure le port TCP
     Import-Module SqlServer -ErrorAction SilentlyContinue; \
     Write-Host 'SQL Server configuré'
+
+# Télécharge Power BI Report Server 2025
+RUN Write-Host 'Téléchargement de Power BI Report Server 2025...'; \
+    Invoke-WebRequest -Uri 'https://aka.ms/pbireportserverexe' \
+    -OutFile 'C:\temp\PowerBIReportServer.exe' -UseBasicParsing; \
+    Write-Host 'Téléchargement terminé'
 
 # Installe Power BI Report Server
 RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
@@ -98,7 +97,7 @@ RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
 
 # Nettoie les fichiers temporaires
 RUN Remove-Item -Path C:\temp -Recurse -Force; \
-    Remove-Item -Path C:\setup\sql -Recurse -Force
+    Remove-Item -Path C:\setup -Recurse -Force
 
 # Copy configuration scripts
 COPY scripts/ C:/scripts/
@@ -110,7 +109,7 @@ RUN powershell -Command \
     \
     # Configure PBIRS service \
     Write-Host 'Configuring PBIRS service...'; \
-    C:/scripts/configure-pbirs.ps1;
+    C:/scripts/entrypoint.ps1;
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
