@@ -110,7 +110,8 @@ RUN Write-Host 'Extraction des fichiers .exe/.box et installation de SQL Server 
                          '/TCPENABLED=1', \
                          '/NPENABLED=0', \
                          '/UPDATEENABLED=0', \
-                         '/QUIET' \
+                         '/QUIET', \
+                         '/INDICATEPROGRESS' \
             -Wait -NoNewWindow; \
             Write-Host 'Installation SQL Server terminée'; \
         } else { \
@@ -126,12 +127,21 @@ RUN Write-Host 'Extraction des fichiers .exe/.box et installation de SQL Server 
 
 # Configure SQL Server
 RUN Write-Host 'Configuration de SQL Server...'; \
-    # Démarre le service SQL Server si ce n'est pas fait
-    Start-Service -Name 'MSSQLSERVER'; \
-    # Start-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
-    # Configure le port TCP
-    Import-Module SqlServer -ErrorAction SilentlyContinue; \
-    Write-Host 'SQL Server configuré'
+    # Démarre le service SQL Server si nécessaire \
+    Start-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
+    # Attend que SQL Server soit prêt \
+    $timeout = 60; \
+    $elapsed = 0; \
+    do { \
+        Start-Sleep -Seconds 5; \
+        $elapsed += 5; \
+        $service = Get-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
+    } while ($service.Status -ne 'Running' -and $elapsed -lt $timeout); \
+    if ($service.Status -eq 'Running') { \
+        Write-Host 'SQL Server démarré avec succès'; \
+    } else { \
+        Write-Warning 'SQL Server pas encore démarré, continuons...'; \
+    }
 
 # Télécharge Power BI Report Server 2025
 RUN Write-Host 'Téléchargement de Power BI Report Server 2025...'; \
