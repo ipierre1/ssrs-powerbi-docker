@@ -1,28 +1,19 @@
 param(
-    [string]$sa_password = $env:sa_password,
+    [string]$sa_password = $env:SA_PASSWORD,
     [string]$ACCEPT_EULA = $env:ACCEPT_EULA,
-    [string]$ssrs_user = $env:ssrs_user,
-    [string]$ssrs_password = $env:ssrs_password
+    [string]$attach_dbs = $env:attach_dbs,
+    [string]$pbirs_user = $env:pbirs_user,
+    [string]$pbirs_password = $env:pbirs_password
 )
 
-Write-Host "Starting SSRS Docker Container..."
-Write-Host "SSRS User: $ssrs_user"
+Write-Host "Starting PBIRS Docker Container..."
+Write-Host "PBIRS User: $pbirs_user"
 
-# Validate required environment variables
-if (-not $sa_password) {
-    Write-Error "sa_password environment variable is required"
-    exit 1
-}
-
-if ($ACCEPT_EULA -ne "Y") {
-    Write-Error "ACCEPT_EULA must be set to Y"
-    exit 1
-}
 
 try {
     # Start SQL Server
     Write-Host "Starting SQL Server..."
-    Start-Service MSSQLSERVER
+    C:/scripts/start-mssql.ps1 -sa_password $sa_password -ACCEPT_EULA $ACCEPT_EULA -attach_dbs \"$attach_dbs\" -Verbose
     
     # Wait for SQL Server to be ready
     $timeout = 60
@@ -46,21 +37,18 @@ try {
         throw "SQL Server failed to start within timeout"
     }
 
-    # Start SSRS
-    Write-Host "Starting SSRS services..."
-    Start-Service SQLServerReportingServices
-    Start-Service ReportServer
+    # Start PBIRS
+    Write-Host "Starting PBIRS services..."
+    Start-Service PowerBIReportServer
 
-    # Configure SSRS if not already configured
-    $configPath = "C:\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\rsreportserver.config"
-    if (-not (Test-Path $configPath)) {
-        Write-Host "Configuring SSRS for first time..."
-        & C:\scripts\configure-ssrs.ps1 -SSRSUser $ssrs_user -SSRSPassword $ssrs_password
-    }
+    # Configure PBIRS if not already configured
+    C:/scripts/configure-pbirs.ps1 -Verbose
 
-    Write-Host "SSRS is ready!"
-    Write-Host "Access SSRS at: http://localhost/reports"
-    Write-Host "Login with: $ssrs_user"
+    C:/scripts/newadmin.ps1 -username $pbirs_user -password $pbirs_password -Verbose
+
+    Write-Host "PBIRS is ready!"
+    Write-Host "Access PBIRS at: http://localhost/reports"
+    Write-Host "Login with: $pbirs_user"
 
     # Keep container running
     while ($true) {
@@ -68,7 +56,7 @@ try {
         
         # Health check
         try {
-            $services = @("MSSQLSERVER", "SQLServerReportingServices")
+            $services = @("MSSQLSERVER", "PowerBIReportServer")
             foreach ($service in $services) {
                 $svc = Get-Service $service -ErrorAction SilentlyContinue
                 if (-not $svc -or $svc.Status -ne "Running") {

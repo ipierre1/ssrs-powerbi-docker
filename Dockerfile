@@ -5,7 +5,7 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
 # Metadata labels
 LABEL maintainer="ipierre1" \
-      org.opencontainers.image.title="SSRS PowerBI 2022 Docker" \
+      org.opencontainers.image.title="PBIRS PowerBI 2022 Docker" \
       org.opencontainers.image.description="SQL Server Reporting Services 2022 in Docker container" \
       org.opencontainers.image.source="https://github.com/ipierre1/ssrs-powerbi-docker" \
       org.opencontainers.image.licenses="MIT"
@@ -20,12 +20,13 @@ LABEL org.opencontainers.image.created=$BUILD_DATE \
       org.opencontainers.image.revision=$VCS_REF \
       org.opencontainers.image.version=$VERSION
 
-# Environment variables pour SSRS
-ENV ssrs_user=SSRSAdmin
-ENV ssrs_password=DefaultPass123!
+# Environment variables pour PBIRS
+ENV pbirs_user=pbirsAdmin
+ENV pbirs_password=DefaultPass123!
 
 # Définit les variables d'environnement
 ENV SA_PASSWORD="YourStrong@Passw0rd" \
+    attach_dbs="[]" \
     ACCEPT_EULA="Y" \
     MSSQL_PID="Evaluation"
 
@@ -55,9 +56,23 @@ RUN Write-Host 'Téléchargement de Power BI Report Server 2025...'; \
 
 # Télécharge les média SQL Server complets
 RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
-    Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' -ArgumentList '/ACTION=Install', '/MEDIAPATH=C:\setup\sql', '/QUIET', '/ENU', '/IAcceptSQLServerLicenseTerms', '/Language=en-US' \
+    Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
+    -ArgumentList '/ACTION=Install', \
+                  '/INSTANCENAME=MSSQLSERVER', \
+                  '/MEDIAPATH=C:\setup\sql', \
+                  '/QUIET', \
+                  '/ENU', \
+                  '/IAcceptSQLServerLicenseTerms', \
+                  '/Language=en-US' \
+                  '/FEATURES=SQLEngine', \
+                  '/UPDATEENABLED=0', \
+                #   '/SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE'', \
+                #   '/SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS'', \
+                  '/TCPENABLED=1', \
+                  '/NPENABLED=0' \
     -Wait -NoNewWindow; \
     Write-Host 'Installation SQL Server terminée'
+
 
 # Configure SQL Server
 RUN Write-Host 'Configuration de SQL Server...'; \
@@ -71,13 +86,13 @@ RUN Write-Host 'Configuration de SQL Server...'; \
 RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
     Start-Process -FilePath 'C:\temp\PowerBIReportServer.exe' \
     -ArgumentList '/QUIET', \
-                 '/IACCEPTLICENSETERMS', \
-                 '/EDITION=Eval', \
-                 '/INSTANCENAME=PBIRS', \
-                 '/INSTALLPATH="C:\Program Files\Microsoft Power BI Report Server"', \
-                 '/DATABASESERVERNAME=localhost', \
-                 '/DATABASENAME=ReportServer', \
-                 '/RSINSTALLMODE=DefaultNativeMode' \
+                  '/IACCEPTLICENSETERMS', \
+                  '/EDITION=Eval', \
+                  '/INSTANCENAME=PBIRS', \
+                  '/INSTALLPATH="C:\Program Files\Microsoft Power BI Report Server"', \
+                  '/DATABASESERVERNAME=localhost', \
+                  '/DATABASENAME=ReportServer', \
+                  '/RSINSTALLMODE=DefaultNativeMode' \
     -Wait -NoNewWindow; \
     Write-Host 'Installation Power BI Report Server terminée'
 
@@ -88,14 +103,14 @@ RUN Remove-Item -Path C:\temp -Recurse -Force; \
 # Copy configuration scripts
 COPY scripts/ C:/scripts/
 
-# Make scripts executable and configure SSRS
+# Make scripts executable and configure PBIRS
 RUN powershell -Command \
     # Set execution policy \
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force; \
     \
-    # Configure SSRS service \
-    Write-Host 'Configuring SSRS service...'; \
-    C:/scripts/configure-ssrs.ps1;
+    # Configure PBIRS service \
+    Write-Host 'Configuring PBIRS service...'; \
+    C:/scripts/configure-pbirs.ps1;
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
