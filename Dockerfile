@@ -113,9 +113,11 @@ RUN Write-Host 'Extraction des fichiers .exe/.box et installation de SQL Server 
                          '/FEATURES=SQLENGINE', \
                          '/INSTANCENAME=MSSQLSERVER', \
                          '/SAPWD="YourStrong@Passw0rd"', \
-                         '/AGTSVCACCOUNT=`"NT AUTHORITY\System`"', \
-                         '/SQLSVCACCOUNT=`"NT AUTHORITY\System`"', \
-                         '/SQLSYSADMINACCOUNTS=`"BUILTIN\Administrators`"', \
+                         '/AGTSVCACCOUNT="pbirsAdmin"', \
+                         '/AGTSVCPASSWORD="DefaultPass123!"', \
+                         '/SQLSVCACCOUNT="pbirsAdmin"', \
+                         '/SQLSVCPASSWORD="DefaultPass123!"', \
+                         '/SQLSYSADMINACCOUNTS="BUILTIN\Administrators"', \
                          '/SQLSVCSTARTUPTYPE=Automatic', \
                          '/AGTSVCSTARTUPTYPE=Automatic', \
                          '/BROWSERSVCSTARTUPTYPE=Automatic', \
