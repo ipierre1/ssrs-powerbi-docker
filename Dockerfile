@@ -125,8 +125,8 @@ RUN Write-Host 'Extraction des fichiers .exe/.box et installation de SQL Server 
                          '/NPENABLED=0', \
                          '/UPDATEENABLED=0', \
                          '/SECURITYMODE=SQL', \
-                         '/QUIET', \
-                         '/INDICATEPROGRESS' \
+                         '/QUIET' \
+                        #  '/INDICATEPROGRESS' \
             -Wait -NoNewWindow; \
             Write-Host 'Installation SQL Server terminée'; \
         } else { \
@@ -169,12 +169,9 @@ RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
     Start-Process -FilePath 'C:\temp\PowerBIReportServer.exe' \
     -ArgumentList '/QUIET', \
                   '/IACCEPTLICENSETERMS', \
+                  '/NORESTART', \
                   '/EDITION=Dev', \
-                  '/INSTANCENAME=PBIRS', \
-                  '/INSTALLPATH="C:\Program Files\Microsoft Power BI Report Server"', \
-                  '/DATABASESERVERNAME=localhost', \
-                  '/DATABASENAME=ReportServer', \
-                  '/RSINSTALLMODE=DefaultNativeMode' \
+                  '/INSTALLFOLDER="C:\Program Files\Microsoft Power BI Report Server"' \
     -Wait -NoNewWindow; \
     Write-Host 'Installation Power BI Report Server terminée'
 
