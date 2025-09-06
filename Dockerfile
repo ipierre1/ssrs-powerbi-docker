@@ -48,20 +48,35 @@ RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
     -OutFile 'C:\temp\SQL2025-SSEI-Eval.exe' -UseBasicParsing; \
     Write-Host 'Téléchargement terminé'
 
-# Télécharge les média SQL Server complets
-RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
+RUN Write-Host 'Extraction des médias SQL Server...'; \
     Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
-    -ArgumentList '/ACTION=Install', \
-                  '/INSTANCENAME=MSSQLSERVER', \
-                  '/MEDIAPATH=C:\setup\sql', \
-                  '/QUIET', \
-                  '/ENU', \
-                  '/IAcceptSQLServerLicenseTerms', \
-                  '/Language=en-US', \
-                  '/FEATURES=SQLEngine', \
-                  '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
-                  '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"' \
+    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=Core', '/QUIET' \
     -Wait -NoNewWindow; \
+    Write-Host 'Extraction terminée'
+
+# Installe SQL Server 2025
+RUN Write-Host 'Installation de SQL Server 2025...'; \
+    $setupPath = Get-ChildItem -Path 'C:\setup\sql' -Name 'setup.exe' -Recurse | Select-Object -First 1; \
+    if ($setupPath) { \
+        $fullSetupPath = Join-Path 'C:\setup\sql' $setupPath; \
+        Start-Process -FilePath $fullSetupPath \
+        -ArgumentList '/IACCEPTSQLSERVERLICENSETERMS', \
+                     '/ACTION=install', \
+                     '/FEATURES=SQLENGINE', \
+                     '/INSTANCENAME=MSSQLSERVER', \
+                     '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
+                     '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"', \
+                     '/AGTSVCACCOUNT="NT AUTHORITY\Network Service"', \
+                     '/SQLSVCSTARTUPTYPE=Automatic', \
+                     '/BROWSERSVCSTARTUPTYPE=Automatic', \
+                     '/TCPENABLED=1', \
+                     '/NPENABLED=0', \
+                     '/QUIET', \
+                     '/INDICATEPROGRESS' \
+        -Wait -NoNewWindow; \
+    } else { \
+        Write-Error 'Setup.exe non trouvé'; \
+    } \
     Write-Host 'Installation SQL Server terminée'
 
 # Configure SQL Server
