@@ -53,24 +53,22 @@ RUN Write-Host 'Extraction des médias et installation SQL Server...'; \
     Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
     -ArgumentList '/ACTION=Install', \
                   '/INSTANCENAME=MSSQLSERVER', \
-                  '/MEDIAPATH="C:\setup\sql"', \
+                  '/MEDIAPATH=C:\setup\sql', \
                   '/QUIET', \
                   '/ENU', \
                   '/IAcceptSQLServerLicenseTerms', \
                   '/Language=en-US' \
-                #   '/FEATURES=SQLEngine', \
-                #   '/UPDATEENABLED=0', \
-                #   '/SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE'', \
-                #   '/SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS'', \
-                #   '/TCPENABLED=1', \
-                #   '/NPENABLED=0' \
+                  '/FEATURES=SQLEngine', \
+                  '/SQLSVCACCOUNT="NT AUTHORITY\System"', \
+                  '/SQLSYSADMINACCOUNTS="BUILTIN\ADMINISTRATORS"', \
     -Wait -NoNewWindow; \
     Write-Host 'Installation SQL Server terminée'
 
 # Configure SQL Server
 RUN Write-Host 'Configuration de SQL Server...'; \
     # Démarre le service SQL Server si ce n'est pas fait
-    Start-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
+    Start-Service -Name 'MSSQLSERVER' \
+    # Start-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
     # Configure le port TCP
     Import-Module SqlServer -ErrorAction SilentlyContinue; \
     Write-Host 'SQL Server configuré'
@@ -86,7 +84,7 @@ RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
     Start-Process -FilePath 'C:\temp\PowerBIReportServer.exe' \
     -ArgumentList '/QUIET', \
                   '/IACCEPTLICENSETERMS', \
-                  '/EDITION=Eval', \
+                  '/EDITION=Dev', \
                   '/INSTANCENAME=PBIRS', \
                   '/INSTALLPATH="C:\Program Files\Microsoft Power BI Report Server"', \
                   '/DATABASESERVERNAME=localhost', \

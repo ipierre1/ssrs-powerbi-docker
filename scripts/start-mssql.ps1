@@ -24,7 +24,7 @@ if ($ACCEPT_EULA -ne "Y" -And $ACCEPT_EULA -ne "y") {
 
 # start the service
 Write-Verbose "Starting SQL Server"
-start-service MSSQLSERVER
+Start-Service -Name 'MSSQLSERVER'
 
 if ($sa_password -eq "_") {
     if (Test-Path $env:sa_password_path) {
