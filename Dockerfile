@@ -48,36 +48,42 @@ RUN Write-Host 'Téléchargement de SQL Server 2025...'; \
     -OutFile 'C:\temp\SQL2025-SSEI-Eval.exe' -UseBasicParsing; \
     Write-Host 'Téléchargement terminé'
 
-# Étape 1: Télécharge les médias SQL Server avec SSEI (ISO)
-RUN Write-Host 'Téléchargement des médias SQL Server (ISO)...'; \
-    Start-Process -FilePath 'C:\temp\SQL2025-SSEI-Eval.exe' \
-    -ArgumentList '/ACTION=Download', '/MEDIAPATH=C:\setup\sql', '/MEDIATYPE=ISO', '/QUIET' \
-    -Wait -NoNewWindow; \
-    Write-Host 'Vérification du téléchargement...'; \
-    if (Test-Path 'C:\setup\sql') { \
-        Write-Host 'Médias SQL Server téléchargés avec succès'; \
-        Get-ChildItem -Path 'C:\setup\sql' -Recurse | Select-Object Name, Length, FullName | Format-Table; \
-    } else { \
-        Write-Error 'Échec du téléchargement des médias SQL Server'; \
-        exit 1; \
-    }
-
-# Étape 2: Monte l'ISO et installe SQL Server
-RUN Write-Host 'Montage de l ISO et installation de SQL Server 2025...'; \
-    $isoFile = Get-ChildItem -Path 'C:\setup\sql' -Filter '*.iso' | Select-Object -First 1; \
-    if ($isoFile) { \
-        Write-Host "ISO trouvée: $($isoFile.FullName)"; \
-        # Monte l'ISO \
-        $mountResult = Mount-DiskImage -ImagePath $isoFile.FullName -PassThru; \
-        $volume = Get-Volume -DiskImage $mountResult; \
-        $driveLetter = $volume.DriveLetter + ':'; \
-        Write-Host "ISO montée sur le lecteur $driveLetter"; \
-        # Vérifie setup.exe \
-        $setupPath = Join-Path $driveLetter 'setup.exe'; \
-        if (Test-Path $setupPath) { \
-            Write-Host "Setup trouvé: $setupPath"; \
+RUN Write-Host 'Extraction des fichiers .exe/.box et installation de SQL Server 2025...'; \
+    Write-Host 'Contenu du dossier téléchargé:'; \
+    Get-ChildItem -Path 'C:\setup\sql' -Recurse | Select-Object Name, Length, FullName | Format-Table; \
+    # Recherche du fichier .exe principal \
+    $exeFile = Get-ChildItem -Path 'C:\setup\sql' -Filter '*.exe' -Recurse | Where-Object { $_.Name -notlike '*SSEI*' } | Select-Object -First 1; \
+    if ($exeFile) { \
+        Write-Host "Fichier EXE trouvé: $($exeFile.Name)"; \
+        # Le fichier .exe peut être soit un setup direct, soit un extracteur \
+        # Tentons d'abord une extraction avec /x \
+        Write-Host 'Tentative d extraction du fichier EXE...'; \
+        Start-Process -FilePath $exeFile.FullName \
+        -ArgumentList '/x:C:\setup\extracted', '/q' \
+        -Wait -NoNewWindow -ErrorAction SilentlyContinue; \
+        # Vérifie si l extraction a fonctionné \
+        if (Test-Path 'C:\setup\extracted') { \
+            Write-Host 'Extraction réussie, recherche de setup.exe...'; \
+            $setupPath = Get-ChildItem -Path 'C:\setup\extracted' -Filter 'setup.exe' -Recurse | Select-Object -First 1; \
+        } else { \
+            Write-Host 'Pas d extraction possible, le fichier EXE est peut-être setup.exe directement'; \
+            # Vérifie si le .exe est directement setup.exe \
+            if ($exeFile.Name -eq 'setup.exe' -or $exeFile.Name -like '*setup*') { \
+                $setupPath = $exeFile; \
+            } else { \
+                # Tentons une extraction différente \
+                Write-Host 'Tentative d extraction avec paramètres différents...'; \
+                New-Item -ItemType Directory -Force -Path 'C:\setup\extracted2'; \
+                Start-Process -FilePath $exeFile.FullName \
+                -ArgumentList '/extract:C:\setup\extracted2', '/quiet' \
+                -Wait -NoNewWindow -ErrorAction SilentlyContinue; \
+                $setupPath = Get-ChildItem -Path 'C:\setup\extracted2' -Filter 'setup.exe' -Recurse | Select-Object -First 1; \
+            }; \
+        }; \
+        if ($setupPath) { \
+            Write-Host "Setup trouvé: $($setupPath.FullName)"; \
             # Lance l'installation \
-            Start-Process -FilePath $setupPath \
+            Start-Process -FilePath $setupPath.FullName \
             -ArgumentList '/IACCEPTSQLSERVERLICENSETERMS', \
                          '/ACTION=install', \
                          '/FEATURES=SQLENGINE', \
@@ -95,15 +101,14 @@ RUN Write-Host 'Montage de l ISO et installation de SQL Server 2025...'; \
                          '/INDICATEPROGRESS' \
             -Wait -NoNewWindow; \
             Write-Host 'Installation SQL Server terminée'; \
-            # Démonte l'ISO \
-            Dismount-DiskImage -ImagePath $isoFile.FullName; \
         } else { \
-            Write-Error "Setup.exe non trouvé sur le lecteur $driveLetter"; \
+            Write-Error 'Setup.exe non trouvé après tentatives d extraction'; \
+            Write-Host 'Contenu après extraction:'; \
+            Get-ChildItem -Path 'C:\setup' -Recurse | Select-Object Name, FullName; \
             exit 1; \
         }; \
     } else { \
-        Write-Error 'Fichier ISO non trouvé dans les médias téléchargés'; \
-        Get-ChildItem -Path 'C:\setup\sql' -Recurse; \
+        Write-Error 'Aucun fichier EXE trouvé dans les médias téléchargés'; \
         exit 1; \
     }
 
