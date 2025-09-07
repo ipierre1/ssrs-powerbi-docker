@@ -23,7 +23,7 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ssrs-powerbi
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
 
 jobs:
   build:
@@ -70,7 +70,7 @@ jobs:
       # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        username: ${{ vars.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Generate Docker tags
@@ -257,9 +257,9 @@ jobs:
         docker run -d --name $containerName `
           -p 1433:1433 -p 80:80 `
           -e ACCEPT_EULA=Y `
-          -e sa_password="TestPass123!" `
-          -e ssrs_user="TestAdmin" `
-          -e ssrs_password="TestAdmin123!" `
+          -e sa_password="YourStrong@Passw0rd" `
+          -e ssrs_user="pbirsAdmin" `
+          -e ssrs_password="DefaultPass123!" `
           --memory 6048mb `
           ${{ steps.test-tag.outputs.tag }}
         
@@ -309,14 +309,14 @@ jobs:
             if ($response.StatusCode -ne 200) {
               throw "SSRS web interface not accessible"
             }
-            Write-Host "✓ Web interface accessible"
+            Write-Host "[SUCCESS] Web interface accessible"
             
             # Test SQL Server connection
-            $connectionString = "Server=localhost,1433;Database=master;User Id=sa;Password=TestPass123!;TrustServerCertificate=true;"
+            $connectionString = "Server=localhost,1433;Database=master;User Id=sa;Password=YourStrong@Passw0rd;Trusted_Connection=true;TrustServerCertificate=true;Encrypt=false;"
             $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
             try {
               $connection.Open()
-              Write-Host "✓ SQL Server connection successful"
+              Write-Host "[SUCCESS] SQL Server connection successful"
               $connection.Close()
             }
             catch {
@@ -337,7 +337,7 @@ jobs:
               try {
                 $response = Invoke-WebRequest -Uri $endpoint -UseBasicParsing -TimeoutSec 30
                 if ($response.StatusCode -eq 200 -and $response.Content -like "*wsdl*") {
-                  Write-Host "✓ Endpoint accessible: $endpoint"
+                  Write-Host "[SUCCESS] Endpoint accessible: $endpoint"
                 } else {
                   throw "Invalid WSDL response"
                 }
@@ -358,17 +358,17 @@ jobs:
                 Install-Module -Name ReportingServicesTools -Force -Scope CurrentUser -AllowClobber
               }
               
-              $credential = New-Object System.Management.Automation.PSCredential("TestAdmin", (ConvertTo-SecureString "TestAdmin123!" -AsPlainText -Force))
+              $credential = New-Object System.Management.Automation.PSCredential("pbirsAdmin", (ConvertTo-SecureString "DefaultPass123!" -AsPlainText -Force))
               
               # Test web service proxy
               $proxy = New-WebServiceProxy -Uri "http://localhost/reportserver/ReportService2010.asmx?WSDL" -Credential $credential
               
               # Test basic operations
               $systemProps = $proxy.GetSystemProperties()
-              Write-Host "✓ GetSystemProperties successful"
+              Write-Host "[SUCCESS] GetSystemProperties successful"
               
               $folders = $proxy.ListChildren("/", $false)
-              Write-Host "✓ ListChildren successful - Found $($folders.Length) items"
+              Write-Host "[SUCCESS] ListChildren successful - Found $($folders.Length) items"
               
             }
             catch {
@@ -493,7 +493,7 @@ jobs:
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           ```
           
-          Access SSRS at: http://localhost/reports
+          Access SSRS at: http://localhost/reportserver
           
           ### Changes
           See the full changelog below.
