@@ -39,7 +39,7 @@ try {
 
     # Start PBIRS
     Write-Host "Starting PBIRS services..."
-    Start-Service PowerBIReportServer
+    Start-Service PowerBIReportServer -ErrorAction SilentlyContinue
 
     # Configure PBIRS if not already configured
     C:/scripts/configure-pbirs.ps1 -Verbose

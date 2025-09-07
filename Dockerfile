@@ -167,11 +167,10 @@ RUN Write-Host 'Téléchargement de Power BI Report Server 2025...'; \
 # Installe Power BI Report Server
 RUN Write-Host 'Installation de Power BI Report Server 2025...'; \
     Start-Process -FilePath 'C:\temp\PowerBIReportServer.exe' \
-    -ArgumentList '/QUIET', \
-                  '/IACCEPTLICENSETERMS', \
-                  '/NORESTART', \
-                  '/EDITION=Dev', \
-                  '/INSTALLFOLDER="C:\Program Files\Microsoft Power BI Report Server"' \
+    -ArgumentList '/quiet', \
+                  '/norestart', \
+                  '/IAcceptLicenseTerms', \
+                  '/Edition=Dev' \
     -Wait -NoNewWindow; \
     Write-Host 'Installation Power BI Report Server terminée'
 
