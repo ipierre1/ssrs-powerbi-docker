@@ -6,7 +6,7 @@ param(
     [string]$pbirs_password = $env:pbirs_password
 )
 
-Write-Host "Starting PBIRS Docker Container..."
+Write-Host "Installing PBIRS Docker Container..."
 Write-Host "PBIRS User: $pbirs_user"
 
 
@@ -49,28 +49,8 @@ try {
     Write-Host "PBIRS is ready!"
     Write-Host "Access PBIRS at: http://localhost/reports"
     Write-Host "Login with: $pbirs_user"
-
-    # Keep container running
-    while ($true) {
-        Start-Sleep 30
-        
-        # Health check
-        try {
-            $services = @("MSSQLSERVER", "PowerBIReportServer")
-            foreach ($service in $services) {
-                $svc = Get-Service $service -ErrorAction SilentlyContinue
-                if (-not $svc -or $svc.Status -ne "Running") {
-                    Write-Warning "Service $service is not running, attempting to restart..."
-                    Start-Service $service
-                }
-            }
-        }
-        catch {
-            Write-Warning "Health check failed: $($_.Exception.Message)"
-        }
-    }
 }
 catch {
-    Write-Error "Container startup failed: $($_.Exception.Message)"
+    Write-Error "Container install failed: $($_.Exception.Message)"
     exit 1
 }

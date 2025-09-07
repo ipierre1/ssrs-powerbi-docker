@@ -186,7 +186,7 @@ RUN powershell -Command \
     \
     # Configure PBIRS service \
     Write-Host 'Configuring PBIRS service...'; \
-    C:/scripts/entrypoint.ps1;
+    C:/scripts/install.ps1;
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 \
