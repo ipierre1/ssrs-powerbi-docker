@@ -276,7 +276,7 @@ jobs:
           if ($containerStatus -eq "running") {
             try {
               $response = Invoke-WebRequest -Uri "http://localhost:8080/reports" -TimeoutSec 10 -UseBasicParsing
-              if ($response.StatusCode -eq 200) {
+              if ($response.StatusCode -eq 200 -or $response.StatusCode -eq 401) {
                 Write-Host "SSRS is ready!"
                 break
               }
