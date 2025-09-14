@@ -46,6 +46,9 @@ try {
 
     C:/scripts/configure-admin.ps1 -username $pbirs_user -password $pbirs_password -Verbose
 
+    # Restore Key
+    C:/scripts/restore-pbirs-key.ps1 -Verbose
+
     Write-Host "PBIRS is ready!"
     Write-Host "Access PBIRS at: http://localhost/reports"
     Write-Host "Login with: $pbirs_user"

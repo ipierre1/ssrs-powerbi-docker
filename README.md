@@ -1,11 +1,11 @@
 # SSRS PowerBI Docker image
 
-[![Build and Publish](https://github.com/ipierre1/ssrs-powerbi-docker/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ipierre1/ssrs-powerbi-docker/actions/workflows/docker-build.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/ipierre1/ssrs-powerbi)](https://hub.docker.com/r/ipierre1/ssrs-powerbi)
-[![GitHub release](https://img.shields.io/github/release/ipierre1/ssrs-powerbi-docker)](https://github.com/ipierre1/ssrs-powerbi-docker/releases)
+[![Build and Publish](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/docker-build.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/ipierre1/pbirs-powerbi)](https://hub.docker.com/r/ipierre1/pbirs-powerbi)
+[![GitHub release](https://img.shields.io/github/release/ipierre1/pbirs-powerbi-docker)](https://github.com/ipierre1/pbirs-powerbi-docker/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-SQL Server Reporting Services (SSRS) Power BI 2022 containerized for development and testing environments.
+Power BI Reporting Services (PBIRS) 2025 containerized for development and testing environments.
 
 > ⚠️ **Important**: This container is designed for development and testing purposes only. It is **NOT recommended for production use**.
 
@@ -21,26 +21,26 @@ This project is a modernized fork that builds upon the excellent work of previou
 
 ### Pull and Run
 ```bash
-docker pull yourusername/ssrs:latest
+docker pull yourusername/pbirs:latest
 
 docker run -d \
-  --name ssrs-dev \
+  --name pbirs-dev \
   -p 1433:1433 \
   -p 80:80 \
   -e ACCEPT_EULA=Y \
   -e sa_password="YourStrong@Password123" \
-  -e ssrs_user="SSRSAdmin" \
-  -e ssrs_password="Admin@Password123" \
+  -e pbirs_user="SSRSAdmin" \
+  -e pbirs_password="Admin@Password123" \
   --memory 6048mb \
-  yourusername/ssrs:latest
+  yourusername/pbirs:latest
 ```
 
-### Access SSRS
+### Access PBIRS
 - **Report Manager**: http://localhost/reports
 - **Web Service**: http://localhost/reportserver
 - **SQL Server**: localhost:1433
 
-**Default Login**: Use the credentials specified in `ssrs_user` and `ssrs_password` environment variables.
+**Default Login**: Use the credentials specified in `pbirs_user` and `pbirs_password` environment variables.
 
 ## Requirements
 
@@ -56,8 +56,8 @@ docker run -d \
 |----------|----------|---------|-------------|
 | `ACCEPT_EULA` | ✅ Yes | - | Must be set to `Y` to accept SQL Server EULA |
 | `sa_password` | ✅ Yes | - | SQL Server SA password (must meet complexity requirements) |
-| `ssrs_user` | ❌ No | `SSRSAdmin` | SSRS administrator username |
-| `ssrs_password` | ❌ No | `DefaultPass123!` | SSRS administrator password |
+| `pbirs_user` | ❌ No | `SSRSAdmin` | SSRS administrator username |
+| `pbirs_password` | ❌ No | `DefaultPass123!` | SSRS administrator password |
 
 ### Password Requirements
 - Minimum 8 characters
@@ -71,28 +71,28 @@ docker run -d \
 version: '3.8'
 
 services:
-  ssrs:
-    image: yourusername/ssrs:latest
-    container_name: ssrs-dev
+  pbirs:
+    image: yourusername/pbirs:latest
+    container_name: pbirs-dev
     ports:
       - "1433:1433"
       - "80:80"
     environment:
       - ACCEPT_EULA=Y
       - sa_password="YourStrong@Password123"
-      - ssrs_user=SSRSAdmin
-      - ssrs_password="Admin@Password123"
+      - pbirs_user=SSRSAdmin
+      - pbirs_password="Admin@Password123"
     deploy:
       resources:
         limits:
           memory: 6G
     volumes:
-      - ssrs_data:/var/opt/mssql
+      - pbirs_data:/var/opt/mssql
       - reports_temp:/temp
     restart: unless-stopped
 
 volumes:
-  ssrs_data:
+  pbirs_data:
   reports_temp:
 ```
 
@@ -101,12 +101,12 @@ To use custom SSRS configurations, mount your configuration files:
 
 ```bash
 docker run -d \
-  --name ssrs-custom \
+  --name pbirs-custom \
   -p 1433:1433 -p 80:80 \
   -v /path/to/custom/rsreportserver.config:/Program Files/Microsoft SQL Server Reporting Services/SSRS/ReportServer/rsreportserver.config \
   -e ACCEPT_EULA=Y \
   -e sa_password="YourPassword" \
-  yourusername/ssrs:latest
+  yourusername/pbirs:latest
 ```
 
 ## API Testing and Development
@@ -124,7 +124,7 @@ The container exposes standard SSRS SOAP endpoints:
 Install-Module -Name ReportingServicesTools
 
 # Connect to SSRS
-$credential = Get-Credential # Use your ssrs_user credentials
+$credential = Get-Credential # Use your pbirs_user credentials
 $proxy = New-WebServiceProxy -Uri "http://localhost/reportserver/ReportService2010.asmx?WSDL" -Credential $credential
 
 # List reports
@@ -156,7 +156,7 @@ This container is perfect for:
 ### Integration with Testing Frameworks
 ```dockerfile
 # Use in your test Dockerfile
-FROM yourusername/ssrs:latest AS ssrs-test
+FROM yourusername/pbirs:latest AS pbirs-test
 
 # Copy test reports
 COPY test-reports/ /test-reports/
@@ -169,7 +169,7 @@ FROM node:16 AS test-runner
 ## Available Images and Tags
 
 ### DockerHub Repository
-All images are available at: [`yourusername/ssrs`](https://hub.docker.com/r/ipierre/ssrs-powerbi)
+All images are available at: [`yourusername/pbirs`](https://hub.docker.com/r/ipierre/pbirs-powerbi)
 
 ### Tag Strategy
 - `latest` - Latest stable build from main branch
@@ -189,19 +189,19 @@ All images are available at: [`yourusername/ssrs`](https://hub.docker.com/r/ipie
 The container includes automatic health monitoring:
 ```bash
 # Check container health
-docker inspect --format='{{.State.Health.Status}}' ssrs-dev
+docker inspect --format='{{.State.Health.Status}}' pbirs-dev
 
 # View health check logs
-docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' ssrs-dev
+docker inspect --format='{{range .State.Health.Log}}{{.Output}}{{end}}' pbirs-dev
 ```
 
 ### Manual Health Verification
 ```bash
 # Test SQL Server connection
-docker exec ssrs-dev powershell "Invoke-Sqlcmd -Query 'SELECT @@VERSION' -ServerInstance localhost -Username sa -Password 'YourPassword'"
+docker exec pbirs-dev powershell "Invoke-Sqlcmd -Query 'SELECT @@VERSION' -ServerInstance localhost -Username sa -Password 'YourPassword'"
 
 # Test SSRS web interface
-docker exec ssrs-dev powershell "Invoke-WebRequest -Uri 'http://localhost/reports' -UseBasicParsing"
+docker exec pbirs-dev powershell "Invoke-WebRequest -Uri 'http://localhost/reports' -UseBasicParsing"
 ```
 
 ## Troubleshooting
@@ -221,31 +221,31 @@ docker info | grep -i memory
 #### SSRS Not Accessible
 ```bash
 # Check service status inside container
-docker exec ssrs-dev powershell "Get-Service | Where-Object {$_.Name -like '*Report*' -or $_.Name -like '*SQL*'}"
+docker exec pbirs-dev powershell "Get-Service | Where-Object {$_.Name -like '*Report*' -or $_.Name -like '*SQL*'}"
 
 # View container logs
-docker logs ssrs-dev --tail 50
+docker logs pbirs-dev --tail 50
 
 # Interactive troubleshooting
-docker exec -it ssrs-dev powershell
+docker exec -it pbirs-dev powershell
 ```
 
 #### Database Connection Issues
 ```bash
 # Test SA password
-docker exec ssrs-dev powershell "sqlcmd -S localhost -U sa -P 'YourPassword' -Q 'SELECT 1'"
+docker exec pbirs-dev powershell "sqlcmd -S localhost -U sa -P 'YourPassword' -Q 'SELECT 1'"
 
 # Check SQL error logs
-docker exec ssrs-dev powershell "Get-Content 'C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Log\ERRORLOG'"
+docker exec pbirs-dev powershell "Get-Content 'C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Log\ERRORLOG'"
 ```
 
 ### Performance Optimization
 ```bash
 # Increase memory if needed
-docker update --memory 8g ssrs-dev
+docker update --memory 8g pbirs-dev
 
 # Monitor resource usage
-docker stats ssrs-dev
+docker stats pbirs-dev
 ```
 
 ## Building from Source
@@ -261,21 +261,21 @@ git clone https://github.com/yourusername/SSRS-Docker.git
 cd SSRS-Docker
 
 # Build the image
-docker build -t ssrs-local .
+docker build -t pbirs-local .
 
 # Run your custom build
 docker run -d \
-  --name ssrs-local-test \
+  --name pbirs-local-test \
   -p 1433:1433 -p 80:80 \
   -e ACCEPT_EULA=Y \
   -e sa_password="YourPassword" \
-  ssrs-local
+  pbirs-local
 ```
 
 ### Custom Builds
 To modify the container:
 1. Edit `Dockerfile` for base image changes
-2. Modify `scripts/configure-ssrs.ps1` for SSRS configuration
+2. Modify `scripts/configure-pbirs.ps1` for SSRS configuration
 3. Update `scripts/entrypoint.ps1` for startup behavior
 
 ## Security Considerations

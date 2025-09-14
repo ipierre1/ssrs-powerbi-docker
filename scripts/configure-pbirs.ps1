@@ -64,4 +64,26 @@ If (! $configset.IsInitialized) {
     $inst = Get-WmiObject -namespace "root\Microsoft\SqlServer\ReportServer\RS_PBIRS\v15" -class MSReportServer_Instance -ComputerName localhost
 
     $inst.GetReportServerUrls()
+
+    $encryptionKeyResult = $configset.BackupEncryptionKey("DefaultPass123!")
+            
+    if ($encryptionKeyResult.HRESULT -eq 0)
+    {
+        Write-Verbose "Retrieving encryption key... Success!"
+    }
+    else
+    {
+        throw "Failed to create backup of the encryption key. Errors: $($encryptionKeyResult.ExtendedErrors)"
+    }
+
+    try
+    {
+        Write-Verbose "Writing key to file..."
+        [System.IO.File]::WriteAllBytes("C:\scripts\pbirs.key", $encryptionKeyResult.KeyFile)
+        Write-Verbose "Writing key to file... Success!"
+    }
+    catch
+    {
+        throw
+    }
 }
