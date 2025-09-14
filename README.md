@@ -9,6 +9,8 @@ Power BI Reporting Services (PBIRS) 2025 containerized for development and testi
 
 > ⚠️ **Important**: This container is designed for development and testing purposes only. It is **NOT recommended for production use**.
 
+![Power BI Reporting Services 2025 in a Windows Container](./docs/pbirs.png)
+
 ## Project History and Credits
 
 This project is a modernized fork that builds upon the excellent work of previous contributors:
@@ -21,7 +23,7 @@ This project is a modernized fork that builds upon the excellent work of previou
 
 ### Pull and Run
 ```bash
-docker pull yourusername/pbirs:latest
+docker pull ipierre1/ssrs-powerbi:latest
 
 docker run -d \
   --name pbirs-dev \
@@ -32,7 +34,7 @@ docker run -d \
   -e pbirs_user="SSRSAdmin" \
   -e pbirs_password="Admin@Password123" \
   --memory 6048mb \
-  yourusername/pbirs:latest
+  ipierre1/ssrs-powerbi:latest
 ```
 
 ### Access PBIRS
@@ -72,7 +74,7 @@ version: '3.8'
 
 services:
   pbirs:
-    image: yourusername/pbirs:latest
+    image: ipierre1/ssrs-powerbi:latest
     container_name: pbirs-dev
     ports:
       - "1433:1433"
@@ -106,7 +108,7 @@ docker run -d \
   -v /path/to/custom/rsreportserver.config:/Program Files/Microsoft SQL Server Reporting Services/SSRS/ReportServer/rsreportserver.config \
   -e ACCEPT_EULA=Y \
   -e sa_password="YourPassword" \
-  yourusername/pbirs:latest
+  ipierre1/ssrs-powerbi:latest
 ```
 
 ## API Testing and Development
@@ -156,7 +158,7 @@ This container is perfect for:
 ### Integration with Testing Frameworks
 ```dockerfile
 # Use in your test Dockerfile
-FROM yourusername/pbirs:latest AS pbirs-test
+FROM ipierre1/ssrs-powerbi:latest AS pbirs-test
 
 # Copy test reports
 COPY test-reports/ /test-reports/

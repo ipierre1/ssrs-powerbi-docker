@@ -125,7 +125,7 @@ jobs:
       shell: powershell
 
     - name: Build Docker image
-      # if: steps.changes.outputs.changed == 'true'
+      if: steps.changes.outputs.changed == 'true'
       id: build
       run: |
         $tags = "${{ steps.tags.outputs.tags }}" -split ","
@@ -178,7 +178,7 @@ jobs:
       shell: powershell
 
     - name: Push Docker images
-      # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
       run: |
         $tags = "${{ steps.tags.outputs.tags }}" -split ","
         
@@ -197,7 +197,7 @@ jobs:
       shell: powershell
 
     - name: Generate SBOM
-      # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
       run: |
         # Install Syft for Windows SBOM generation
         $syftVersion = "0.98.0"
@@ -217,7 +217,7 @@ jobs:
       shell: powershell
 
     - name: Upload SBOM as artifact
-      # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
+      if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
       uses: actions/upload-artifact@v4
       with:
         name: sbom
@@ -252,7 +252,8 @@ jobs:
     - name: Run SSRS Container for Testing
       run: |
         $containerName = "ssrs-test-${{ matrix.test-scenario }}"
-        
+        docker container prune -f
+        docker network prune -f
         Write-Host "Starting container: $containerName"
         docker run -d --name $containerName `
           -p 1433:1433 -p 80:80 `
