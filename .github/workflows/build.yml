@@ -256,7 +256,7 @@ jobs:
         docker network prune -f
         Write-Host "Starting container: $containerName"
         docker run -d --name $containerName `
-          -p 8080:80 `
+          -p 8080:80 -p 1433:1433 `
           -e ACCEPT_EULA=Y `
           -e sa_password="YourStrong@Passw0rd" `
           -e ssrs_user="pbirsAdmin" `
@@ -275,10 +275,19 @@ jobs:
           
           if ($containerStatus -eq "running") {
             try {
-              $response = Invoke-WebRequest -Uri "http://localhost:8080/reports" -TimeoutSec 10 -UseBasicParsing
-              if ($response.StatusCode -eq 200 -or $response.StatusCode -eq 401) {
+              $response = Invoke-WebRequest -Uri "http://localhost:8080/reports" -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+              if ($response.StatusCode -eq 200) {
                 Write-Host "SSRS is ready!"
                 break
+              }
+            }
+            catch [System.Net.WebException] {
+              $statusCode = $_.Exception.Response.StatusCode.value__
+              if ($statusCode -eq 401) {
+                Write-Host "SSRS is ready! (Authentication required as expected)"
+                break
+              } else {
+                Write-Host "SSRS not ready yet, HTTP error: $statusCode"
               }
             }
             catch {
@@ -499,4 +508,5 @@ jobs:
           ### Changes
           See the full changelog below.
       env:
+
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
