@@ -256,7 +256,7 @@ jobs:
         docker network prune -f
         Write-Host "Starting container: $containerName"
         docker run -d --name $containerName `
-          -p 1433:1433 -p 80:80 `
+          -p 8080:80 `
           -e ACCEPT_EULA=Y `
           -e sa_password="YourStrong@Passw0rd" `
           -e ssrs_user="pbirsAdmin" `
@@ -275,7 +275,7 @@ jobs:
           
           if ($containerStatus -eq "running") {
             try {
-              $response = Invoke-WebRequest -Uri "http://localhost/reports" -TimeoutSec 10 -UseBasicParsing
+              $response = Invoke-WebRequest -Uri "http://localhost:8080/reports" -TimeoutSec 10 -UseBasicParsing
               if ($response.StatusCode -eq 200) {
                 Write-Host "SSRS is ready!"
                 break
@@ -306,7 +306,7 @@ jobs:
             Write-Host "Testing basic SSRS functionality..."
             
             # Test web interface
-            $response = Invoke-WebRequest -Uri "http://localhost/reports" -UseBasicParsing
+            $response = Invoke-WebRequest -Uri "http://localhost:8080/reports" -UseBasicParsing
             if ($response.StatusCode -ne 200) {
               throw "SSRS web interface not accessible"
             }
@@ -330,8 +330,8 @@ jobs:
             
             # Test SOAP endpoints
             $endpoints = @(
-              "http://localhost/reportserver/ReportService2010.asmx?WSDL",
-              "http://localhost/reportserver/ReportExecution2005.asmx?WSDL"
+              "http://localhost:8080/reportserver/ReportService2010.asmx?WSDL",
+              "http://localhost:8080/reportserver/ReportExecution2005.asmx?WSDL"
             )
             
             foreach ($endpoint in $endpoints) {
@@ -362,7 +362,7 @@ jobs:
               $credential = New-Object System.Management.Automation.PSCredential("pbirsAdmin", (ConvertTo-SecureString "DefaultPass123!" -AsPlainText -Force))
               
               # Test web service proxy
-              $proxy = New-WebServiceProxy -Uri "http://localhost/reportserver/ReportService2010.asmx?WSDL" -Credential $credential
+              $proxy = New-WebServiceProxy -Uri "http://localhost:8080/reportserver/ReportService2010.asmx?WSDL" -Credential $credential
               
               # Test basic operations
               $systemProps = $proxy.GetSystemProperties()
@@ -494,7 +494,7 @@ jobs:
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           ```
           
-          Access SSRS at: http://localhost/reportserver
+          Access SSRS at: http://localhost:8080/reportserver
           
           ### Changes
           See the full changelog below.
