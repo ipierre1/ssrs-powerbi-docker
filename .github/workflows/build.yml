@@ -315,7 +315,8 @@ jobs:
             Write-Host "Testing basic SSRS functionality..."
             
             # Test web interface
-            $response = Invoke-WebRequest -Uri "http://localhost:8080/reports" -UseBasicParsing
+            $credential = New-Object System.Management.Automation.PSCredential("pbirsAdmin", (ConvertTo-SecureString "DefaultPass123!" -AsPlainText -Force))
+            $response = Invoke-WebRequest -Uri "http://localhost:8080/reports" -UseBasicParsing -Credential $credential
             if ($response.StatusCode -ne 200) {
               throw "SSRS web interface not accessible"
             }
@@ -345,7 +346,8 @@ jobs:
             
             foreach ($endpoint in $endpoints) {
               try {
-                $response = Invoke-WebRequest -Uri $endpoint -UseBasicParsing -TimeoutSec 30
+                $credential = New-Object System.Management.Automation.PSCredential("pbirsAdmin", (ConvertTo-SecureString "DefaultPass123!" -AsPlainText -Force))
+                $response = Invoke-WebRequest -Uri $endpoint -UseBasicParsing -TimeoutSec 30 -Credential $credential
                 if ($response.StatusCode -eq 200 -and $response.Content -like "*wsdl*") {
                   Write-Host "[SUCCESS] Endpoint accessible: $endpoint"
                 } else {
