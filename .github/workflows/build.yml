@@ -133,7 +133,7 @@ jobs:
         $primaryTag = "${{ steps.tags.outputs.primary_tag }}"
         
         # Pull previous image for cache
-        docker pull $primaryTag || Write-Host "No previous image found for cache"
+        docker pull $primaryTag
         
         # Build arguments
         $buildArgs = @(
