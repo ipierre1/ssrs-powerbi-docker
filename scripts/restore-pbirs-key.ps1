@@ -11,29 +11,24 @@ $configset = Get-ConfigSet
 $KeyPath = (Resolve-Path "C:\scripts\pbirs.key").ProviderPath
 
 Write-Verbose "Checking if key file path is valid..."
-if (-not (Test-Path $KeyPath))
-{
+if (-not (Test-Path $KeyPath)) {
     throw "No key was found at the specified location: $path"
 }
 
-try
-{
+try {
     $keyBytes = [System.IO.File]::ReadAllBytes($KeyPath)
 }
-catch
-{
+catch {
     throw
 }
 
 Write-Verbose "Restoring encryption key..."
 $restoreKeyResult = $configset.RestoreEncryptionKey($keyBytes, $keyBytes.Length, "DefaultPass123!")
 
-if ($restoreKeyResult.HRESULT -eq 0)
-{
+if ($restoreKeyResult.HRESULT -eq 0) {
     Write-Verbose "Success!"
 }
-else
-{
+else {
     throw "Failed to restore the encryption key! Errors: $($restoreKeyResult.ExtendedErrors)"
 }
 

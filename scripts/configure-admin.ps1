@@ -1,14 +1,14 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$username,
+  [Parameter(Mandatory = $true)]
+  [string]$username,
 
-    [Parameter(Mandatory = $true)]
-    [string]$password
+  [Parameter(Mandatory = $true)]
+  [string]$password
 )
 if ($username -eq "_") {
    
-    Write-Verbose "ERR: No SSRS user specified"
-    exit 1
+  Write-Verbose "ERR: No SSRS user specified"
+  exit 1
 }
 
 if ($password -eq "_") {
@@ -25,16 +25,18 @@ $secpass = ConvertTo-SecureString  -AsPlainText $password -Force
 
 Try {
   $existingUser = Get-LocalUser $username -ErrorAction Stop # | Get-Member -ErrorAction Stop
-} Catch {
+}
+Catch {
   Write-Host "User $username does not exist yet, creating..."
 }
 
 if ($existingUser.Length -eq 0) {
-    Write-Host "Creating user $username"
-    New-LocalUser "$username" -Password $secpass -FullName "$username" -Description "Local admin $username"
-    Add-LocalGroupMember -Group "Administrators" -Member "$username"
-    Get-LocalGroupMember -Group "Administrators"
-} else {
-    Write-Host "User $username already exists, skipping creation."
-    Write-Information "test"
+  Write-Host "Creating user $username"
+  New-LocalUser "$username" -Password $secpass -FullName "$username" -Description "Local admin $username"
+  Add-LocalGroupMember -Group "Administrators" -Member "$username"
+  Get-LocalGroupMember -Group "Administrators"
+}
+else {
+  Write-Host "User $username already exists, skipping creation."
+  Write-Information "test"
 }

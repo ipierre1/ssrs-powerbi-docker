@@ -128,20 +128,25 @@ jobs:
       if: steps.changes.outputs.changed == 'true'
       id: build
       run: |
+        $env:DOCKER_BUILDKIT=1
         $tags = "${{ steps.tags.outputs.tags }}" -split ","
         $primaryTag = "${{ steps.tags.outputs.primary_tag }}"
+        
+        # Pull previous image for cache
+        docker pull $primaryTag || Write-Host "No previous image found for cache"
         
         # Build arguments
         $buildArgs = @(
           "--build-arg", "BUILD_DATE=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')",
           "--build-arg", "VCS_REF=${{ github.sha }}",
-          "--build-arg", "VERSION=${{ github.ref_name }}"
+          "--build-arg", "VERSION=${{ github.ref_name }}",
+          "--build-arg", "BUILDKIT_INLINE_CACHE=1"
         )
         
         # Add labels
         $labels = @(
-          "--label", "org.opencontainers.image.title=SSRS 2019 Docker",
-          "--label", "org.opencontainers.image.description=SQL Server Reporting Services 2019 in Docker container",
+          "--label", "org.opencontainers.image.title=PBIRS 2025 Docker",
+          "--label", "org.opencontainers.image.description=Power BI Reporting Services 2025 in a Docker container",
           "--label", "org.opencontainers.image.vendor=${{ github.repository_owner }}",
           "--label", "org.opencontainers.image.licenses=MIT",
           "--label", "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}",
@@ -151,8 +156,8 @@ jobs:
         
         Write-Host "Building Docker image with primary tag: $primaryTag"
         
-        # Build the image
-        $buildCmd = @("docker", "build") + $buildArgs + $labels + @("-t", $primaryTag, ".")
+        # Build the image with cache
+        $buildCmd = @("docker", "build", "--cache-from", $primaryTag) + $buildArgs + $labels + @("-t", $primaryTag, ".")
         & $buildCmd[0] $buildCmd[1..($buildCmd.Length-1)]
         
         if ($LASTEXITCODE -ne 0) {

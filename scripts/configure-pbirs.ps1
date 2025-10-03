@@ -12,7 +12,7 @@ $configset = Get-ConfigSet
 
 $configset
 
-If (! $configset.IsInitialized) {
+if (! $configset.IsInitialized) {
     # Get the ReportServer and ReportServerTempDB creation script
     [string]$dbscript = $configset.GenerateDatabaseCreationScript("ReportServer", 1033, $false).Script
 
@@ -67,23 +67,19 @@ If (! $configset.IsInitialized) {
 
     $encryptionKeyResult = $configset.BackupEncryptionKey("DefaultPass123!")
             
-    if ($encryptionKeyResult.HRESULT -eq 0)
-    {
+    if ($encryptionKeyResult.HRESULT -eq 0) {
         Write-Verbose "Retrieving encryption key... Success!"
     }
-    else
-    {
+    else {
         throw "Failed to create backup of the encryption key. Errors: $($encryptionKeyResult.ExtendedErrors)"
     }
 
-    try
-    {
+    try {
         Write-Verbose "Writing key to file..."
         [System.IO.File]::WriteAllBytes("C:\scripts\pbirs.key", $encryptionKeyResult.KeyFile)
         Write-Verbose "Writing key to file... Success!"
     }
-    catch
-    {
+    catch {
         throw
     }
 }

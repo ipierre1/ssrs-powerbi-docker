@@ -5,8 +5,8 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2022
 
 # Metadata labels
 LABEL maintainer="ipierre1" \
-      org.opencontainers.image.title="PBIRS PowerBI 2022 Docker" \
-      org.opencontainers.image.description="SQL Server Reporting Services 2022 in Docker container" \
+      org.opencontainers.image.title="PBIRS PowerBI 2025 Docker" \
+      org.opencontainers.image.description="Power BI Reporting Services 2025 in Docker container" \
       org.opencontainers.image.source="https://github.com/ipierre1/ssrs-powerbi-docker" \
       org.opencontainers.image.licenses="MIT"
 
