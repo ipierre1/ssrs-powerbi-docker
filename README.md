@@ -1,6 +1,6 @@
 # Power BI Reporting Services Docker image
 
-[![Build and Publish](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/build.yml/badge.svg)](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/build.yml/badge.svg)
+[![Docker Version](https://img.shields.io/docker/v/ipierre1/ssrs-powerbi)](https://img.shields.io/docker/v/ipierre1/ssrs-powerbi)
 [![Docker Pulls](https://img.shields.io/docker/pulls/ipierre1/ssrs-powerbi)](https://hub.docker.com/r/ipierre1/ssrs-powerbi)
 [![GitHub release](https://img.shields.io/github/release/ipierre1/ssrs-powerbi-docker)](https://github.com/ipierre1/ssrs-powerbi-docker/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

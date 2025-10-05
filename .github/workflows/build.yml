@@ -313,11 +313,15 @@ jobs:
 
     - name: Run Tests - ${{ matrix.test-scenario }}
       run: |
+        # Simple 40-second delay
+        Start-Sleep -Seconds 40
+        
         $containerName = "ssrs-test-${{ matrix.test-scenario }}"
         
         switch ("${{ matrix.test-scenario }}") {
           "basic-functionality" {
             Write-Host "Testing basic SSRS functionality..."
+            $env:POWERSHELL_TELEMETRY_OPTOUT = 1
             
             # Test web interface
             $credential = New-Object System.Management.Automation.PSCredential("pbirsAdmin", (ConvertTo-SecureString "DefaultPass123!" -AsPlainText -Force))
@@ -342,6 +346,7 @@ jobs:
           
           "api-endpoints" {
             Write-Host "Testing SSRS API endpoints..."
+            $env:POWERSHELL_TELEMETRY_OPTOUT = 1
             
             # Test SOAP endpoints
             $endpoints = @(
@@ -367,12 +372,27 @@ jobs:
           
           "report-generation" {
             Write-Host "Testing report generation capabilities..."
+            $env:POWERSHELL_TELEMETRY_OPTOUT = 1
             
             # Test with PowerShell SSRS module
             try {
               # Install ReportingServicesTools if not available
               if (-not (Get-Module -ListAvailable -Name ReportingServicesTools)) {
-                Install-Module -Name ReportingServicesTools -Force -Scope CurrentUser -AllowClobber
+                # Set PSGallery as trusted to avoid prompts
+                Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+
+                # Install with comprehensive non-interactive flags
+                Install-Module -Name ReportingServicesTools `
+                              -Force `
+                              -Scope CurrentUser `
+                              -AllowClobber `
+                              -SkipPublisherCheck `
+                              -AcceptLicense `
+                              -Confirm:$false `
+                              -Verbose:$false `
+                              -ErrorAction Stop
+                
+                Write-Host "[SUCCESS] ReportingServicesTools module installed"
               }
               
               $credential = New-Object System.Management.Automation.PSCredential("pbirsAdmin", (ConvertTo-SecureString "DefaultPass123!" -AsPlainText -Force))
