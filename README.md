@@ -1,8 +1,8 @@
-# SSRS PowerBI Docker image
+# Power BI Reporting Services Docker image
 
-[![Build and Publish](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/docker-build.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/ipierre1/pbirs-powerbi)](https://hub.docker.com/r/ipierre1/pbirs-powerbi)
-[![GitHub release](https://img.shields.io/github/release/ipierre1/pbirs-powerbi-docker)](https://github.com/ipierre1/pbirs-powerbi-docker/releases)
+[![Build and Publish](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/build.yml/badge.svg)](https://github.com/ipierre1/pbirs-powerbi-docker/actions/workflows/build.yml/badge.svg)
+[![Docker Pulls](https://img.shields.io/docker/pulls/ipierre1/ssrs-powerbi)](https://hub.docker.com/r/ipierre1/ssrs-powerbi)
+[![GitHub release](https://img.shields.io/github/release/ipierre1/ssrs-powerbi-docker)](https://github.com/ipierre1/ssrs-powerbi-docker/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Power BI Reporting Services (PBIRS) 2025 containerized for development and testing environments.

@@ -328,7 +328,7 @@ jobs:
             Write-Host "[SUCCESS] Web interface accessible"
             
             # Test SQL Server connection
-            $connectionString = "Server=localhost,1433;Database=master;User Id=sa;Password=YourStrong@Passw0rd;Trusted_Connection=true;TrustServerCertificate=true;Encrypt=false;"
+            $connectionString = "Server=localhost,1433;Database=master;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;Encrypt=false;"
             $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
             try {
               $connection.Open()
@@ -410,8 +410,12 @@ jobs:
       shell: powershell
 
   security-scan:
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write  # Required for SARIF uploads
     needs: build
-    runs-on: windows-latest  # Changed to windows for Windows containers
     if: needs.build.outputs.image-tags != '' && github.event_name != 'pull_request'
     
     steps:
