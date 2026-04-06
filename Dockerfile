@@ -28,7 +28,8 @@ ENV pbirs_password=DefaultPass123!
 ENV SA_PASSWORD="YourStrong@Passw0rd" \
     attach_dbs="[]" \
     ACCEPT_EULA="Y" \
-    MSSQL_PID="Evaluation"
+    MSSQL_PID="Developer"
+    # MSSQL_PID="Evaluation"
 
 # Configure PowerShell comme shell par défaut
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
