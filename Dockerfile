@@ -40,6 +40,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 #     iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')); \
 #     choco install -y 7zip
 
+
 # Copy configuration scripts
 COPY scripts/ C:/scripts/
     

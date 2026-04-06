@@ -128,7 +128,7 @@ jobs:
       if: steps.changes.outputs.changed == 'true'
       id: build
       run: |
-        $env:DOCKER_BUILDKIT=1
+        # $env:DOCKER_BUILDKIT=1
         $tags = "${{ steps.tags.outputs.tags }}" -split ","
         $primaryTag = "${{ steps.tags.outputs.primary_tag }}"
         
@@ -139,8 +139,8 @@ jobs:
         $buildArgs = @(
           "--build-arg", "BUILD_DATE=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')",
           "--build-arg", "VCS_REF=${{ github.sha }}",
-          "--build-arg", "VERSION=${{ github.ref_name }}",
-          "--build-arg", "BUILDKIT_INLINE_CACHE=1"
+          "--build-arg", "VERSION=${{ github.ref_name }}"
+          # "--build-arg", "BUILDKIT_INLINE_CACHE=1"
         )
         
         # Add labels
