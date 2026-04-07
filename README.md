@@ -1,11 +1,17 @@
-# Power BI Reporting Services Docker image
-
-[![Docker Version](https://img.shields.io/docker/v/ipierre1/ssrs-powerbi)](https://img.shields.io/docker/v/ipierre1/ssrs-powerbi)
-[![Docker Pulls](https://img.shields.io/docker/pulls/ipierre1/ssrs-powerbi)](https://hub.docker.com/r/ipierre1/ssrs-powerbi)
-[![GitHub release](https://img.shields.io/github/release/ipierre1/ssrs-powerbi-docker)](https://github.com/ipierre1/ssrs-powerbi-docker/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-Power BI Reporting Services (PBIRS) 2025 containerized for development and testing environments.
+<p align="center">
+  <br>
+  <img src="docs/hero.png" alt="PBIRS — Power BI Report Server 2026 Docker Container" width="100%">
+  <br><br>
+  <b style="font-size: 2em;">PBIRS Docker</b>
+  <br><br>
+  Power BI Report Server 2026 containerized for development and testing environments.
+  <br>
+  SQL Server 2025 included, auto-configured, Windows Server 2022. Not for production use.
+  <br><br>
+  <a href="https://hub.docker.com/r/ipierre1/ssrs-powerbi"><img src="https://img.shields.io/docker/v/ipierre1/ssrs-powerbi?style=flat&colorA=18181B&colorB=f2c811" alt="docker version"></a>
+  <a href="https://hub.docker.com/r/ipierre1/ssrs-powerbi"><img src="https://img.shields.io/docker/pulls/ipierre1/ssrs-powerbi?style=flat&colorA=18181B&colorB=f2c811" alt="docker pulls"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-f2c811?style=flat&colorA=18181B&colorB=f2c811" alt="license MIT"></a>
+</p>
 
 > ⚠️ **Important**: This container is designed for development and testing purposes only. It is **NOT recommended for production use**.
 
@@ -31,8 +37,8 @@ docker run -d \
   -p 80:80 \
   -e ACCEPT_EULA=Y \
   -e sa_password="YourStrong@Password123" \
-  -e pbirs_user="SSRSAdmin" \
-  -e pbirs_password="Admin@Password123" \
+  -e pbirs_user="pbirsAdmin" \
+  -e pbirs_password="DefaultPass123!" \
   --memory 6048mb \
   ipierre1/ssrs-powerbi:latest
 ```
@@ -58,7 +64,7 @@ docker run -d \
 |----------|----------|---------|-------------|
 | `ACCEPT_EULA` | ✅ Yes | - | Must be set to `Y` to accept SQL Server EULA |
 | `sa_password` | ✅ Yes | - | SQL Server SA password (must meet complexity requirements) |
-| `pbirs_user` | ❌ No | `SSRSAdmin` | SSRS administrator username |
+| `pbirs_user` | ❌ No | `pbirsAdmin` | SSRS administrator username |
 | `pbirs_password` | ❌ No | `DefaultPass123!` | SSRS administrator password |
 
 ### Password Requirements
@@ -82,8 +88,8 @@ services:
     environment:
       - ACCEPT_EULA=Y
       - sa_password="YourStrong@Password123"
-      - pbirs_user=SSRSAdmin
-      - pbirs_password="Admin@Password123"
+      - pbirs_user=pbirsAdmin
+      - pbirs_password="DefaultPass123!"
     deploy:
       resources:
         limits:
@@ -137,12 +143,12 @@ $reports | Where-Object { $_.TypeName -eq "Report" }
 ### REST API Testing
 ```bash
 # Test basic connectivity
-curl -u "SSRSAdmin:Admin@Password123" \
+curl -u "pbirsAdmin:DefaultPass123!" \
   -H "Content-Type: application/json" \
   http://localhost/reports/api/v2.0/folders
 
 # Get report list
-curl -u "SSRSAdmin:Admin@Password123" \
+curl -u "pbirsAdmin:DefaultPass123!" \
   http://localhost/reports/api/v2.0/reports
 ```
 
