@@ -27,7 +27,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 COPY scripts/ C:/scripts/
 
 # Set execution policy once
-RUN Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force `
+RUN Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force; `
     Write-Host 'Configuring admin accounts...'; `
     C:/scripts/configure-admin.ps1 -username $env:pbirs_user -password $env:pbirs_password -Verbose
 
