@@ -128,21 +128,16 @@ jobs:
       if: steps.changes.outputs.changed == 'true'
       id: build
       run: |
-        # $env:DOCKER_BUILDKIT=1
         $tags = "${{ steps.tags.outputs.tags }}" -split ","
         $primaryTag = "${{ steps.tags.outputs.primary_tag }}"
-        
-        # Pull previous image for cache
-        docker pull $primaryTag
-        
+
         # Build arguments
         $buildArgs = @(
           "--build-arg", "BUILD_DATE=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')",
           "--build-arg", "VCS_REF=${{ github.sha }}",
           "--build-arg", "VERSION=${{ github.ref_name }}"
-          # "--build-arg", "BUILDKIT_INLINE_CACHE=1"
         )
-        
+
         # Add labels
         $labels = @(
           "--label", "org.opencontainers.image.title=PBIRS 2025 Docker",
@@ -153,18 +148,39 @@ jobs:
           "--label", "org.opencontainers.image.revision=${{ github.sha }}",
           "--label", "org.opencontainers.image.created=$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')"
         )
-        
+
+        # Try to pull previous image for cache - non-fatal if it fails
+        $useCache = $false
+        Write-Host "Attempting to pull cache image: $primaryTag"
+        docker pull $primaryTag
+        if ($LASTEXITCODE -eq 0) {
+          $useCache = $true
+          Write-Host "Cache image pulled successfully"
+        } else {
+          Write-Host "Cache image not available, building without cache"
+        }
+
+        # Build with cache if available, fallback to no cache
+        $baseCmd = @("docker", "build") + $buildArgs + $labels + @("-t", $primaryTag, ".")
+        if ($useCache) {
+          $buildCmd = @("docker", "build", "--cache-from", $primaryTag) + $buildArgs + $labels + @("-t", $primaryTag, ".")
+        } else {
+          $buildCmd = $baseCmd
+        }
+
         Write-Host "Building Docker image with primary tag: $primaryTag"
-        
-        # Build the image with cache
-        $buildCmd = @("docker", "build", "--cache-from", $primaryTag) + $buildArgs + $labels + @("-t", $primaryTag, ".")
         & $buildCmd[0] $buildCmd[1..($buildCmd.Length-1)]
-        
+
+        # If build with cache failed, retry without cache (corrupted layer case)
+        if ($LASTEXITCODE -ne 0 -and $useCache) {
+          Write-Host "Build with cache failed (possibly corrupted layers), retrying without cache..."
+          & $baseCmd[0] $baseCmd[1..($baseCmd.Length-1)]
+        }
+
         if ($LASTEXITCODE -ne 0) {
           throw "Docker build failed with exit code $LASTEXITCODE"
         }
-        
-        # Tag with additional tags
+
         foreach ($tag in $tags[1..($tags.Length-1)]) {
           Write-Host "Tagging with: $tag"
           docker tag $primaryTag $tag
@@ -172,12 +188,11 @@ jobs:
             throw "Docker tag failed for $tag"
           }
         }
-        
-        # Get image digest for output
+
         $imageInfo = docker inspect $primaryTag | ConvertFrom-Json
         $digest = $imageInfo[0].Id
         echo "digest=$digest" >> $env:GITHUB_OUTPUT
-        
+
         Write-Host "Build completed successfully"
         Write-Host "Image ID: $digest"
       shell: powershell
