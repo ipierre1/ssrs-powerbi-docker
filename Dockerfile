@@ -27,7 +27,9 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 COPY scripts/ C:/scripts/
 
 # Set execution policy once
-RUN Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force
+RUN Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force `
+    Write-Host 'Configuring admin accounts...'; `
+    C:/scripts/configure-admin.ps1 -username $env:pbirs_user -password $env:pbirs_password -Verbose
 
 # SQL Server - download, install, and clean in ONE layer
 RUN Write-Host 'Creating directories...'; `
@@ -82,11 +84,30 @@ RUN Write-Host 'Creating directories...'; `
     Remove-Item -Path C:\setup -Recurse -Force -ErrorAction SilentlyContinue; `
     Write-Host 'SQL Server layer complete'
 
+RUN Write-Host 'Configuration de SQL Server...'; \
+    # Démarre le service SQL Server si nécessaire \
+    Start-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
+    # Attend que SQL Server soit prêt \
+    $timeout = 60; \
+    $elapsed = 0; \
+    do { \
+        Start-Sleep -Seconds 5; \
+        $elapsed += 5; \
+        $service = Get-Service -Name 'MSSQLSERVER' -ErrorAction SilentlyContinue; \
+    } while ($service.Status -ne 'Running' -and $elapsed -lt $timeout); \
+    if ($service.Status -eq 'Running') { \
+        Write-Host 'SQL Server démarré avec succès'; \
+    } else { \
+        Write-Warning 'SQL Server pas encore démarré, continuons...'; \
+    }
+
 # PBIRS - download, install, and clean in ONE layer
 RUN Write-Host 'Downloading Power BI Report Server 2025...'; `
     New-Item -ItemType Directory -Force -Path C:\temp | Out-Null; `
     Invoke-WebRequest -Uri 'https://aka.ms/pbireportserverexe' `
         -OutFile 'C:\temp\PowerBIReportServer.exe' -UseBasicParsing; `
+    
+    Write-Host 'Téléchargement terminé' `
     `
     Write-Host 'Installing Power BI Report Server...'; `
     Start-Process -FilePath 'C:\temp\PowerBIReportServer.exe' `
@@ -99,10 +120,8 @@ RUN Write-Host 'Downloading Power BI Report Server 2025...'; `
 
 # Configure PBIRS
 RUN Write-Host 'Configuring PBIRS service...'; `
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force; `
     C:/scripts/install.ps1
-
-RUN Write-Host 'Configuring admin accounts...'; `
-    C:/scripts/configure-admin.ps1 -username $env:pbirs_user -password $env:pbirs_password -Verbose
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5m --retries=3 `
     CMD powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost/reports' -UseBasicParsing -TimeoutSec 10 | Out-Null; exit 0 } catch { exit 1 }"

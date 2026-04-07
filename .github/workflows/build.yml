@@ -65,6 +65,15 @@ jobs:
           }
         }
       shell: powershell
+
+    - name: Move Docker data root to D drive
+      run: |
+        Stop-Service docker
+        $config = @{ "data-root" = "D:\\docker-data" } | ConvertTo-Json
+        New-Item -ItemType Directory -Force -Path "D:\docker-data" | Out-Null
+        Set-Content -Path "C:\ProgramData\docker\config\daemon.json" -Value $config
+        Start-Service docker
+      shell: powershell
     
     - name: Login to Docker Hub
       # if: steps.changes.outputs.changed == 'true' && github.event_name != 'pull_request'
